@@ -1,0 +1,46 @@
+# IDE
+*.iml
+*.patch
+*.diff
+/.idea/caches/
+/.idea/libraries/
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+/.idea/shelf/
+/.idea/httpRequests/
+
+# Gradle
+.gradle/
+build/
+
+# Local configuration
+local.properties
+/local.properties
+
+# macOS
+.DS_Store
+
+# Android Studio Navigation editor temp files
+.navigation/
+
+# Android Studio captures
+/captures/
+captures/
+
+# NDK
+.externalNativeBuild/
+.cxx/
+obj/
+
+# Build artifacts
+*.apk
+*.ap_
+*.aar
+*.aab
+*.dex
+*.class
+
+# Log Files
+*.log
