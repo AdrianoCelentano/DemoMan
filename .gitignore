@@ -10,6 +10,7 @@
 /.idea/assetWizardSettings.xml
 /.idea/shelf/
 /.idea/httpRequests/
+/.idea/vcs.xml
 
 # Gradle
 .gradle/
