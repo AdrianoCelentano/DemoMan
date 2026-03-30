@@ -7,7 +7,7 @@ import java.util.UUID
 
 class FakeGameApiService : GameApiService {
 
-    private val games = mutableListOf<GameDto>(
+    private val games = mutableListOf(
         GameDto(
             id = "demo-game-1",
             players = listOf(
