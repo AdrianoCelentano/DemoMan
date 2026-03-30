@@ -1,0 +1,49 @@
+package com.adriano.demoman.game
+
+data class GameViewState(
+    var step: GameStep = GameStep.Setup,
+    val game: GameSession = GameSession()
+)
+
+data class GameSession(
+    val id: String? = null,
+    val players: List<Player> = emptyList(),
+    val towers: List<Tower> = emptyList()
+)
+
+enum class Team {
+    DETECTIVE,
+    MISTER_X
+}
+
+data class LatLng(
+    val latitude: Double,
+    val longitude: Double
+)
+
+data class Tower(
+    val isActive: Boolean,
+    val position: LatLng
+)
+
+data class Player(
+    val userId: Long,
+    val team: Team,
+    val position: LatLng
+)
+
+sealed class GameStep {
+    object Loading: GameStep()
+    object Setup : GameStep()
+    object Game : GameStep()
+}
+
+data class GameList(
+    val games: List<GameSession>
+) : GameStep()
+
+sealed class GameEvent {
+    object GoToGameList : GameEvent()
+    object CreateGame : GameEvent()
+    data class JoinGame(val gameId: String) : GameEvent()
+}
