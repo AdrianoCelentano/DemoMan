@@ -2,12 +2,14 @@ package com.adriano.demoman.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.io.IOException
+import javax.inject.Inject
 
 data class LoginUiState(
     val isLoginMode: Boolean = true,
@@ -16,7 +18,8 @@ data class LoginUiState(
     val isSuccess: Boolean = false
 )
 
-class LoginViewModel(
+@HiltViewModel
+class LoginViewModel @Inject constructor(
     private val authService: AuthApiService
 ) : ViewModel() {
 
@@ -46,7 +49,6 @@ class LoginViewModel(
                 if (response.isSuccessful) {
                     val token = response.body()?.token
                     if (token != null) {
-                        // In a real application, you would save this token in EncryptedSharedPreferences or DataStore
                         _uiState.value = _uiState.value.copy(isLoading = false, isSuccess = true)
                     } else {
                         _uiState.value = _uiState.value.copy(isLoading = false, error = "Invalid response from server")
