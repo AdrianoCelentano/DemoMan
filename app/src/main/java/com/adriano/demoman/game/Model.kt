@@ -1,7 +1,7 @@
 package com.adriano.demoman.game
 
 data class GameViewState(
-    var step: GameStep = GameStep.Setup,
+    val step: GameStep = GameStep.Setup,
     val game: GameSession = GameSession()
 )
 
@@ -33,7 +33,7 @@ data class Player(
 )
 
 sealed class GameStep {
-    object Loading: GameStep()
+    object Loading : GameStep()
     object Setup : GameStep()
     object Game : GameStep()
 }
@@ -44,6 +44,8 @@ data class GameList(
 
 sealed class GameEvent {
     object GoToGameList : GameEvent()
+    object GoToSetup : GameEvent()
     object CreateGame : GameEvent()
     data class JoinGame(val gameId: String) : GameEvent()
+    object EndGame : GameEvent() // after all towers are activated or MisterX got caught
 }

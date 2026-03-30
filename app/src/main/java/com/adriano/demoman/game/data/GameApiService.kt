@@ -19,6 +19,9 @@ interface GameApiService {
     suspend fun joinGame(
         @Body request: JoinGameRequestDto
     ): Response<GameDto>
+
+    @POST
+    suspend fun endGame(@Body request: EndGameRequestDto)
 }
 
 enum class TeamDto {
@@ -55,4 +58,8 @@ data class CreateGameRequestDto(
 data class JoinGameRequestDto(
     val gameId: String,
     val team: TeamDto = TeamDto.MISTER_X
+)
+
+data class EndGameRequestDto(
+    val gameId: String,
 )

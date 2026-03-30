@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import com.adriano.demoman.auth.LoginScreen
+import com.adriano.demoman.auth.TokenStore
+import com.adriano.demoman.game.ui.GameScreen
 import com.adriano.demoman.ui.theme.DemoManTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -20,7 +22,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             DemoManTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    LoginScreen(onLoginSuccess = {}, modifier = Modifier.padding(innerPadding))
+                    if (TokenStore.token.isNullOrBlank()) {
+                        LoginScreen(onLoginSuccess = {}, modifier = Modifier.padding(innerPadding))
+                    } else {
+                        GameScreen(innerPadding)
+                    }
                 }
             }
         }

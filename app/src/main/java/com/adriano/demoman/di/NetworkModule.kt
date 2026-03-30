@@ -1,6 +1,7 @@
 package com.adriano.demoman.di
 
 import com.adriano.demoman.auth.AuthApiService
+import com.adriano.demoman.game.data.FakeGameApiService
 import com.adriano.demoman.game.data.GameApiService
 import dagger.Module
 import dagger.Provides
@@ -32,6 +33,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideGameApiService(retrofit: Retrofit): GameApiService {
-        return retrofit.create(GameApiService::class.java)
+//        return retrofit.create(GameApiService::class.java)
+        return FakeGameApiService()
     }
 }

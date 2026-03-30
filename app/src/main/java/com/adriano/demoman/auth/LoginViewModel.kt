@@ -2,6 +2,7 @@ package com.adriano.demoman.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.adriano.demoman.auth.TokenStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,26 +45,39 @@ class LoginViewModel @Inject constructor(
             val isLoginMode = _uiState.value.isLoginMode
             try {
                 val request = UsernamePasswordRequest(username, password)
-                val response = if (isLoginMode) authService.login(request) else authService.register(request)
-                
+                val response =
+                    if (isLoginMode) authService.login(request) else authService.register(request)
+
                 if (response.isSuccessful) {
                     val token = response.body()?.token
                     if (token != null) {
+                        TokenStore.token = token
                         _uiState.value = _uiState.value.copy(isLoading = false, isSuccess = true)
                     } else {
-                        _uiState.value = _uiState.value.copy(isLoading = false, error = "Invalid response from server")
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            error = "Invalid response from server"
+                        )
                     }
                 } else {
-                    val defaultMsg = if (isLoginMode) "Invalid username or password" else "Registration failed"
+                    val defaultMsg =
+                        if (isLoginMode) "Invalid username or password" else "Registration failed"
                     val errorMessage = response.errorBody()?.string() ?: defaultMsg
                     _uiState.value = _uiState.value.copy(isLoading = false, error = errorMessage)
                 }
             } catch (e: IOException) {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = "Network error. Check your connection.")
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = "Network error. Check your connection."
+                )
             } catch (e: HttpException) {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = "Unexpected error occurred.")
+                _uiState.value =
+                    _uiState.value.copy(isLoading = false, error = "Unexpected error occurred.")
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = e.localizedMessage ?: "Unknown error")
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.localizedMessage ?: "Unknown error"
+                )
             }
         }
     }
