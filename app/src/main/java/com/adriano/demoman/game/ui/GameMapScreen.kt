@@ -22,10 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import com.adriano.demoman.game.GameEvent
+import com.adriano.demoman.game.domain.GameEvent
+import com.adriano.demoman.game.data.centerPos
+import com.adriano.demoman.game.data.worldBounds
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
@@ -35,7 +36,11 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
 
 @Composable
-fun GameMapScreen(innerPadding: PaddingValues, onEvent: (GameEvent) -> Unit) {
+fun GameMapScreen(
+    innerPadding: PaddingValues,
+    onEvent: (GameEvent) -> Unit,
+    playground: List<LatLng>
+) {
 
     val hasLocationPermission = hasLocationPermission()
     ExitGameDialog(onEvent)
@@ -68,14 +73,33 @@ fun GameMapScreen(innerPadding: PaddingValues, onEvent: (GameEvent) -> Unit) {
             )
 
             Polygon(
-                points = worldBounds,
-                holes = listOf(geofencePoints), // This "punches" a hole in the red overlay
-                fillColor = Color.Red.copy(alpha = 0.4f), // Semi-transparent red
+                points = createOuterBounds(playground),
+                holes = listOf(playground),
+                fillColor = Color.Red.copy(alpha = 0.4f),
                 strokeColor = Color.Red,
                 strokeWidth = 2f
             )
         }
     }
+}
+
+// TODO move this to the backend
+fun createOuterBounds(playground: List<LatLng>): List<LatLng> {
+    if (playground.isEmpty()) return emptyList()
+
+    val minLat = playground.minOf { it.latitude }
+    val maxLat = playground.maxOf { it.latitude }
+    val minLng = playground.minOf { it.longitude }
+    val maxLng = playground.maxOf { it.longitude }
+
+    val offset = 0.0045
+
+    return listOf(
+        LatLng(maxLat + offset, minLng - offset), // Top Left
+        LatLng(maxLat + offset, maxLng + offset), // Top Right
+        LatLng(minLat - offset, maxLng + offset), // Bottom Right
+        LatLng(minLat - offset, minLng - offset)  // Bottom Left
+    )
 }
 
 @Composable

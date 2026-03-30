@@ -13,6 +13,7 @@ class FakeGameApiService : GameApiService {
             players = listOf(
                 PlayerDto(100L, TeamDto.DETECTIVE, LatLngDto(52.5200, 13.4050))
             ),
+            playgroundBoundaries = geofencePoints,
             towers = listOf(
                 TowerDto(true, LatLngDto(52.5210, 13.4060))
             )
@@ -22,6 +23,7 @@ class FakeGameApiService : GameApiService {
     override suspend fun createGame(request: CreateGameRequestDto): Response<GameDto> {
         val newGame = GameDto(
             id = UUID.randomUUID().toString(),
+            playgroundBoundaries = geofencePoints,
             players = listOf(
                 PlayerDto(
                     userId = System.currentTimeMillis(),

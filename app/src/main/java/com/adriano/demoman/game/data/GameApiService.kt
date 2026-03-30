@@ -47,6 +47,7 @@ data class PlayerDto(
 
 data class GameDto(
     val id: String? = null,
+    val playgroundBoundaries: List<LatLngDto>,
     val players: List<PlayerDto> = emptyList(),
     val towers: List<TowerDto> = emptyList()
 )

@@ -1,4 +1,4 @@
-package com.adriano.demoman.game
+package com.adriano.demoman.game.domain
 
 import android.util.Log
 import androidx.lifecycle.ViewModel

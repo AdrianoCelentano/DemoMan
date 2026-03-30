@@ -1,4 +1,6 @@
-package com.adriano.demoman.game
+package com.adriano.demoman.game.domain
+
+import com.google.android.gms.maps.model.LatLng
 
 data class GameViewState(
     val step: GameStep = GameStep.Setup,
@@ -7,6 +9,7 @@ data class GameViewState(
 
 data class GameSession(
     val id: String? = null,
+    val playground: List<LatLng> = emptyList(),
     val players: List<Player> = emptyList(),
     val towers: List<Tower> = emptyList()
 )
@@ -15,11 +18,6 @@ enum class Team {
     DETECTIVE,
     MISTER_X
 }
-
-data class LatLng(
-    val latitude: Double,
-    val longitude: Double
-)
 
 data class Tower(
     val isActive: Boolean,

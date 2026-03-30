@@ -18,11 +18,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.adriano.demoman.game.GameEvent
-import com.adriano.demoman.game.GameList
-import com.adriano.demoman.game.GameSession
-import com.adriano.demoman.game.GameStep
-import com.adriano.demoman.game.GameViewModel
+import com.adriano.demoman.game.domain.GameEvent
+import com.adriano.demoman.game.domain.GameList
+import com.adriano.demoman.game.domain.GameSession
+import com.adriano.demoman.game.domain.GameStep
+import com.adriano.demoman.game.domain.GameViewModel
 
 @Composable
 fun GameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewModel()) {
@@ -30,7 +30,7 @@ fun GameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewM
     val onEvent = viewModel::onEvent
     when (state.step) {
         is GameList -> GameListScreen(state.step.games, onEvent, innerPadding)
-        GameStep.Game -> GameMapScreen(innerPadding, onEvent)
+        GameStep.Game -> GameMapScreen(innerPadding, onEvent, state.game.playground)
         GameStep.Loading -> LoadingScreen()
         GameStep.Setup -> SetupScreen(onEvent, innerPadding)
     }
