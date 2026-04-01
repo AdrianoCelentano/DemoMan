@@ -1,7 +1,10 @@
 package com.adriano.demoman.game.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -11,6 +14,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -23,13 +27,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import com.adriano.demoman.R
 import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.game.domain.GameSession
 import com.adriano.demoman.game.domain.Team
 import com.adriano.demoman.game.domain.Tower
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
@@ -52,16 +60,24 @@ fun GameMapScreen(
     Box(
         modifier = Modifier.padding(innerPadding)
     ) {
+        val context = LocalContext.current
         val centerPos = remember { findCenter(game.playground) }
 
         val cameraPositionState = rememberCameraPositionState {
             position = CameraPosition(centerPos, 16.5f, 0f, 10f)
         }
 
+        val mapStyleOptions = remember {
+            MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style)
+        }
+
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
-            properties = MapProperties(isMyLocationEnabled = hasLocationPermission),
+            properties = MapProperties(
+                isMyLocationEnabled = hasLocationPermission,
+                mapStyleOptions = mapStyleOptions
+            ),
             uiSettings = MapUiSettings(
                 scrollGesturesEnabled = false,
                 zoomGesturesEnabled = false,
@@ -77,9 +93,9 @@ fun GameMapScreen(
             Polygon(
                 points = bounds,
                 holes = listOf(game.playground),
-                fillColor = Color.Red.copy(alpha = 0.4f),
-                strokeColor = Color.Red,
-                strokeWidth = 2f
+                fillColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                strokeColor = MaterialTheme.colorScheme.primary,
+                strokeWidth = 4f
             )
         }
     }
@@ -87,19 +103,42 @@ fun GameMapScreen(
 
 @Composable
 fun DetectiveView(towers: List<Tower>) {
+    val context = LocalContext.current
+    val smallIcon = remember {
+        getResizedBitmap(context, R.drawable.tower_down, 48, 48)
+    }
     towers.filter { it.isActive }.forEach { tower ->
         Marker(
+            icon = smallIcon,
             state = rememberUpdatedMarkerState(position = tower.position),
         )
     }
 
 }
 
+fun getResizedBitmap(context: Context, resId: Int, widthDp: Int, heightDp: Int): BitmapDescriptor {
+    val resources = context.resources
+    val widthPx = (widthDp * resources.displayMetrics.density).toInt()
+    val heightPx = (heightDp * resources.displayMetrics.density).toInt()
+
+    val bitmap = BitmapFactory.decodeResource(resources, resId)
+    val scaledBitmap = Bitmap.createScaledBitmap(bitmap, widthPx, heightPx, false)
+
+    return BitmapDescriptorFactory.fromBitmap(scaledBitmap)
+}
+
 @Composable
 fun MisterXView(towers: List<Tower>) {
+    val context = LocalContext.current
+    val towerIcon = remember {
+        getResizedBitmap(context, R.drawable.tower, 104, 104)
+    }
+    val towerDownIcon = remember {
+        getResizedBitmap(context, R.drawable.tower_down, 104, 104)
+    }
     towers.forEach { tower ->
         Marker(
-            alpha = if (tower.isActive) 1.0f else 0.5f,
+            icon = if (tower.isActive) towerDownIcon else towerIcon,
             state = rememberUpdatedMarkerState(position = tower.position),
         )
     }

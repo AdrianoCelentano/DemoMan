@@ -17,6 +17,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.DemoMan">
 
+        <uses-library
+            android:name="org.apache.http.legacy"
+            android:required="false" />
+
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBOXv-FgRPwS2-hjwx1yYnArBcdkC26N68" />

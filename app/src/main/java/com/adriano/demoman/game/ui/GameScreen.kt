@@ -100,7 +100,7 @@ fun SetupScreen(onEvent: (GameEvent) -> Unit, innerPadding: PaddingValues) {
             )
 
             Text(
-                text = "READY FOR BLAST OFF?",
+                text = "BEREIT FÜR DIE JAGD ?",
                 style = MaterialTheme.typography.labelLarge.copy(
                     fontWeight = FontWeight.Light,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)

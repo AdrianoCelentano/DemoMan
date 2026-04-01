@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardDoubleArrowRight
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.*
@@ -21,12 +23,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.modifier.modifierLocalProvider
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.game.domain.GameSession
+import com.adriano.demoman.game.domain.Player
+import com.adriano.demoman.game.domain.Team
+import com.adriano.demoman.game.domain.Tower
+import com.adriano.demoman.ui.theme.DemoManTheme
+import com.adriano.demoman.ui.theme.SurfaceSlate
+import com.google.android.gms.maps.model.LatLng
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,7 +59,7 @@ fun GameListScreen(
                     .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
                 Text(
-                    text = "ACTIVE MISSIONS",
+                    text = "AKTIVE MISSIONEN",
                     style = MaterialTheme.typography.displaySmall.copy(
                         fontWeight = FontWeight.Black,
                         letterSpacing = 2.sp,
@@ -62,7 +72,7 @@ fun GameListScreen(
                     )
                 )
                 Text(
-                    text = "SELECT AN OPERATIONAL ZONE",
+                    text = "WÄHLE EINE MISSION",
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                         letterSpacing = 1.sp
@@ -105,7 +115,7 @@ fun MissionCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .border(
-                1.dp,
+                4.dp,
                 Brush.horizontalGradient(
                     listOf(
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
@@ -115,10 +125,8 @@ fun MissionCard(
                 RoundedCornerShape(20.dp)
             )
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(20.dp)
     ) {
         Row(
             modifier = Modifier
@@ -137,7 +145,7 @@ fun MissionCard(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Person,
+                    imageVector = Icons.Default.Map,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -148,30 +156,31 @@ fun MissionCard(
             // Info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "MISSION: ${game.id ?: "UNKNOWN"}",
+                    text = "MISSION: ${game.id ?: "UNBEKANNT"}",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 )
-                
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     MissionStatChip(
                         icon = Icons.Default.Person,
-                        label = "${game.players.size} OPERATIVES"
+                        label = "${game.players.size} SPIELER"
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     MissionStatChip(
                         icon = Icons.Default.Place,
-                        label = "${game.towers.size} INTEL"
+                        label = "${game.towers.size} STATIONEN"
                     )
                 }
             }
 
             Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
+                modifier = Modifier.padding(start = 4.dp),
+                imageVector = Icons.Default.KeyboardDoubleArrowRight,
                 contentDescription = "Join",
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                tint = MaterialTheme.colorScheme.primary
             )
         }
     }
@@ -225,18 +234,18 @@ fun EmptyMissionState(onEvent: (GameEvent) -> Unit) {
                 textAlign = TextAlign.Center
             )
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         Text(
-            text = "NO MISSIONS DETECTED",
+            text = "KEINE MISSIONEN AKTIV",
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.onBackground
             ),
             textAlign = TextAlign.Center
         )
-        
+
         Text(
             text = "SCANNING SECURE CHANNELS...",
             style = MaterialTheme.typography.bodyMedium.copy(
@@ -247,19 +256,43 @@ fun EmptyMissionState(onEvent: (GameEvent) -> Unit) {
         )
 
         Spacer(modifier = Modifier.height(48.dp))
-        
+
         Button(
             onClick = { onEvent(GameEvent.GoToSetup) },
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary
             ),
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth().height(56.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
         ) {
             Text(
-                text = "RETURN TO LOBBY",
+                text = "ZURÜCK ZUR LOBBY",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun MissionCardPreview() {
+    DemoManTheme {
+        MissionCard(
+            game = GameSession(
+                id = "ALPHA-7",
+                players = listOf(
+                    Player(1L, Team.DETECTIVE, LatLng(49.0, 8.4)),
+                    Player(2L, Team.MISTER_X, LatLng(49.01, 8.41))
+                ),
+                towers = listOf(
+                    Tower(true, LatLng(49.005, 8.405)),
+                    Tower(false, LatLng(49.008, 8.408)),
+                    Tower(false, LatLng(49.002, 8.402))
+                )
+            ),
+            onClick = {}
+        )
     }
 }

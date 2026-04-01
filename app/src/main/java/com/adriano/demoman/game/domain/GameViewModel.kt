@@ -45,53 +45,6 @@ class GameViewModel @Inject constructor(
         restoreSessionIfNeeded()
     }
 
-    /**
-     * On startup, check if a game session was previously saved (survives process death
-     * via [SavedStateHandle], and full app restarts via [GameSessionRepository]).
-     *
-     * Priority: SavedStateHandle (faster, in-memory) → DataStore (disk, survives restarts)
-     */
-    private fun restoreSessionIfNeeded() {
-        // SavedStateHandle survives process death without a network round-trip.
-        val savedGameId: String? = savedStateHandle[KEY_GAME_ID]
-        val savedTeam: String? = savedStateHandle[KEY_TEAM]
-
-        if (savedGameId != null && savedTeam != null) {
-            val team = runCatching { Team.valueOf(savedTeam) }.getOrNull() ?: return
-            restoreSession(savedGameId, team)
-            return
-        }
-
-        // DataStore survives full restarts (e.g. phone reboot, manual swipe-close).
-        viewModelScope.launch {
-            val persisted = gameSessionRepository.load() ?: return@launch
-            val team = runCatching { Team.valueOf(persisted.team) }.getOrNull() ?: return@launch
-            restoreSession(persisted.gameId, team)
-        }
-    }
-
-    private fun restoreSession(gameId: String, team: Team) {
-        viewModelScope.launch {
-            gameState.update { it.copy(step = GameStep.Loading) }
-            try {
-                val game = gameApiService.findGameById(gameId).body()
-                    ?.toGameSession()
-                    ?.copy(role = team)
-                if (game != null) {
-                    gameState.update { it.copy(step = GameStep.Game, game = game) }
-                    Log.d("qwer", "Session restored for gameId=$gameId team=$team")
-                } else {
-                    // Game no longer exists on the server — clean up and go to setup.
-                    clearPersistedSession()
-                    gameState.update { it.copy(step = GameStep.Setup) }
-                }
-            } catch (e: Exception) {
-                Log.e("qwer", "Failed to restore session", e)
-                gameState.update { it.copy(step = GameStep.Setup) }
-            }
-        }
-    }
-
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     fun onEvent(event: GameEvent) {
         Log.d("qwer", "Event: $event")
@@ -216,6 +169,53 @@ class GameViewModel @Inject constructor(
         savedStateHandle.remove<String>(KEY_GAME_ID)
         savedStateHandle.remove<String>(KEY_TEAM)
         gameSessionRepository.clear()
+    }
+
+    /**
+     * On startup, check if a game session was previously saved (survives process death
+     * via [SavedStateHandle], and full app restarts via [GameSessionRepository]).
+     *
+     * Priority: SavedStateHandle (faster, in-memory) → DataStore (disk, survives restarts)
+     */
+    private fun restoreSessionIfNeeded() {
+        // SavedStateHandle survives process death without a network round-trip.
+        val savedGameId: String? = savedStateHandle[KEY_GAME_ID]
+        val savedTeam: String? = savedStateHandle[KEY_TEAM]
+
+        if (savedGameId != null && savedTeam != null) {
+            val team = runCatching { Team.valueOf(savedTeam) }.getOrNull() ?: return
+            restoreSession(savedGameId, team)
+            return
+        }
+
+        // DataStore survives full restarts (e.g. phone reboot, manual swipe-close).
+        viewModelScope.launch {
+            val persisted = gameSessionRepository.load() ?: return@launch
+            val team = runCatching { Team.valueOf(persisted.team) }.getOrNull() ?: return@launch
+            restoreSession(persisted.gameId, team)
+        }
+    }
+
+    private fun restoreSession(gameId: String, team: Team) {
+        viewModelScope.launch {
+            gameState.update { it.copy(step = GameStep.Loading) }
+            try {
+                val game = gameApiService.findGameById(gameId).body()
+                    ?.toGameSession()
+                    ?.copy(role = team)
+                if (game != null) {
+                    gameState.update { it.copy(step = GameStep.Game, game = game) }
+                    Log.d("qwer", "Session restored for gameId=$gameId team=$team")
+                } else {
+                    // Game no longer exists on the server — clean up and go to setup.
+                    clearPersistedSession()
+                    gameState.update { it.copy(step = GameStep.Setup) }
+                }
+            } catch (e: Exception) {
+                Log.e("qwer", "Failed to restore session", e)
+                gameState.update { it.copy(step = GameStep.Setup) }
+            }
+        }
     }
 
     companion object {
