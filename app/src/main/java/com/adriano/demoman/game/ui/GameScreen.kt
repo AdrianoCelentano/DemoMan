@@ -186,25 +186,3 @@ private fun LoadingScreen() {
         )
     }
 }
-
-@Composable
-fun GameListScreen(
-    games: List<GameSession>,
-    onEvent: (GameEvent) -> Unit,
-    innerPadding: PaddingValues
-) {
-    BackHandler() { onEvent(GameEvent.GoToSetup) }
-    LazyColumn(modifier = Modifier
-        .fillMaxSize()
-        .padding(innerPadding)) {
-        items(games) { game ->
-            if (game.id == null) return@items
-            Text(
-                text = game.id, modifier = Modifier
-                    .padding(8.dp)
-                    .clickable {
-                        onEvent(GameEvent.JoinGame(game.id))
-                    })
-        }
-    }
-}
