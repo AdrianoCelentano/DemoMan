@@ -2,6 +2,7 @@ package com.adriano.demoman.game.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,10 +24,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.adriano.demoman.game.domain.GameEvent
-import com.adriano.demoman.game.data.centerPos
-import com.adriano.demoman.game.data.worldBounds
+import com.adriano.demoman.game.domain.GameSession
+import com.adriano.demoman.game.domain.Team
+import com.adriano.demoman.game.domain.Tower
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
@@ -39,16 +42,18 @@ import com.google.maps.android.compose.rememberUpdatedMarkerState
 fun GameMapScreen(
     innerPadding: PaddingValues,
     onEvent: (GameEvent) -> Unit,
-    playground: List<LatLng>
+    game: GameSession
 ) {
 
     val hasLocationPermission = hasLocationPermission()
+    if (hasLocationPermission) onEvent(GameEvent.ObserveLocation)
     ExitGameDialog(onEvent)
 
     Box(
         modifier = Modifier.padding(innerPadding)
     ) {
-        val singaporeMarkerState = rememberUpdatedMarkerState(position = centerPos)
+        val centerPos = remember { findCenter(game.playground) }
+
         val cameraPositionState = rememberCameraPositionState {
             CameraPosition(centerPos, 16f, 0f, 30f)
             position = CameraPosition(centerPos, 16.5f, 40f, 10f)
@@ -63,23 +68,41 @@ fun GameMapScreen(
                 zoomGesturesEnabled = false,
                 tiltGesturesEnabled = false,
                 rotationGesturesEnabled = false,
-                myLocationButtonEnabled = hasLocationPermission
+                myLocationButtonEnabled = false
             )
         ) {
-            Marker(
-                state = singaporeMarkerState,
-                title = "Singapore",
-                snippet = "Marker in Singapore"
-            )
+            if (game.role == Team.MISTER_X) MisterXView(game.towers)
+            if (game.role == Team.DETECTIVE) DetectiveView(game.towers)
 
+            val bounds = remember { createOuterBounds(game.playground) }
             Polygon(
-                points = createOuterBounds(playground),
-                holes = listOf(playground),
+                points = bounds,
+                holes = listOf(game.playground),
                 fillColor = Color.Red.copy(alpha = 0.4f),
                 strokeColor = Color.Red,
                 strokeWidth = 2f
             )
         }
+    }
+}
+
+@Composable
+fun DetectiveView(towers: List<Tower>) {
+    towers.filter { it.isActive }.forEach { tower ->
+        Marker(
+            state = rememberUpdatedMarkerState(position = tower.position),
+        )
+    }
+
+}
+
+@Composable
+fun MisterXView(towers: List<Tower>) {
+    towers.forEach { tower ->
+        Marker(
+            alpha = if (tower.isActive) 1.0f else 0.5f,
+            state = rememberUpdatedMarkerState(position = tower.position),
+        )
     }
 }
 
@@ -100,6 +123,14 @@ fun createOuterBounds(playground: List<LatLng>): List<LatLng> {
         LatLng(minLat - offset, maxLng + offset), // Bottom Right
         LatLng(minLat - offset, minLng - offset)  // Bottom Left
     )
+}
+
+fun findCenter(points: List<LatLng>): LatLng {
+    val builder = LatLngBounds.Builder()
+    for (point in points) {
+        builder.include(point)
+    }
+    return builder.build().center
 }
 
 @Composable

@@ -7,8 +7,11 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -18,9 +21,20 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRetrofit(): Retrofit {
+        val okHttpClient = OkHttpClient.Builder()
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            })
+            .connectTimeout(0, TimeUnit.MILLISECONDS) // No timeout for establishing connection
+            .readTimeout(0, TimeUnit.MILLISECONDS)    // No timeout for receiving data
+            .writeTimeout(0, TimeUnit.MILLISECONDS)   // No timeout for sending data
+            .build()
+
         return Retrofit.Builder()
-            .baseUrl("https://your-api-base-url.com/") // Replace with actual base URL
+//            .baseUrl("https://demo-2c7p.onrender.com/") // prod
+            .baseUrl("https://unreplenished-mirta-unsmitten.ngrok-free.dev/") // dev
             .addConverterFactory(GsonConverterFactory.create())
+            .client(okHttpClient)
             .build()
     }
 
@@ -33,7 +47,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideGameApiService(retrofit: Retrofit): GameApiService {
-//        return retrofit.create(GameApiService::class.java)
-        return FakeGameApiService()
+        return retrofit.create(GameApiService::class.java)
+//        return FakeGameApiService()
     }
 }

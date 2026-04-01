@@ -1,9 +1,12 @@
 package com.adriano.demoman.game.data
 
+import androidx.compose.ui.semantics.Role
+import com.google.android.gms.maps.model.LatLng
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 
 interface GameApiService {
 
@@ -15,10 +18,16 @@ interface GameApiService {
     @GET("/api/games")
     suspend fun loadGames(): Response<List<GameDto>>
 
+    @GET("/api/game/{id}")
+    suspend fun findGameById(@Path("id") id: String): Response<GameDto>
+
     @POST("/api/game/join")
     suspend fun joinGame(
         @Body request: JoinGameRequestDto
     ): Response<GameDto>
+
+    @POST
+    suspend fun activateTower(@Body request: ActivateTowerRequestDto): Response<GameDto>
 
     @POST
     suspend fun endGame(@Body request: EndGameRequestDto)
@@ -35,7 +44,7 @@ data class LatLngDto(
 )
 
 data class TowerDto(
-    val isActive: Boolean,
+    val isActive: Boolean = false,
     val position: LatLngDto
 )
 
@@ -64,3 +73,9 @@ data class JoinGameRequestDto(
 data class EndGameRequestDto(
     val gameId: String,
 )
+
+data class ActivateTowerRequestDto(
+    val gameId: String,
+    val towerIndex: Int,
+)
+
