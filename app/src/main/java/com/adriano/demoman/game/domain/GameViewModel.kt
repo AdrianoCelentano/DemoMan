@@ -5,12 +5,13 @@ import android.annotation.SuppressLint
 import android.location.Location
 import android.util.Log
 import androidx.annotation.RequiresPermission
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.adriano.demoman.game.data.ActivateTowerRequestDto
 import com.adriano.demoman.game.data.CreateGameRequestDto
-import com.adriano.demoman.game.data.EndGameRequestDto
 import com.adriano.demoman.game.data.GameApiService
+import com.adriano.demoman.game.data.GameSessionRepository
 import com.adriano.demoman.game.data.JoinGameRequestDto
 import com.adriano.demoman.game.data.LocationProvider
 import com.adriano.demoman.game.data.toGameSession
@@ -29,7 +30,9 @@ import kotlin.time.Duration.Companion.minutes
 @HiltViewModel
 class GameViewModel @Inject constructor(
     private val gameApiService: GameApiService,
-    private val locationProvider: LocationProvider
+    private val locationProvider: LocationProvider,
+    private val gameSessionRepository: GameSessionRepository,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     val gameState = MutableStateFlow(GameViewState())
@@ -38,6 +41,55 @@ class GameViewModel @Inject constructor(
         gameState
             .onEach { Log.d("qwer", "State: $it") }
             .launchIn(viewModelScope)
+
+        restoreSessionIfNeeded()
+    }
+
+    /**
+     * On startup, check if a game session was previously saved (survives process death
+     * via [SavedStateHandle], and full app restarts via [GameSessionRepository]).
+     *
+     * Priority: SavedStateHandle (faster, in-memory) → DataStore (disk, survives restarts)
+     */
+    private fun restoreSessionIfNeeded() {
+        // SavedStateHandle survives process death without a network round-trip.
+        val savedGameId: String? = savedStateHandle[KEY_GAME_ID]
+        val savedTeam: String? = savedStateHandle[KEY_TEAM]
+
+        if (savedGameId != null && savedTeam != null) {
+            val team = runCatching { Team.valueOf(savedTeam) }.getOrNull() ?: return
+            restoreSession(savedGameId, team)
+            return
+        }
+
+        // DataStore survives full restarts (e.g. phone reboot, manual swipe-close).
+        viewModelScope.launch {
+            val persisted = gameSessionRepository.load() ?: return@launch
+            val team = runCatching { Team.valueOf(persisted.team) }.getOrNull() ?: return@launch
+            restoreSession(persisted.gameId, team)
+        }
+    }
+
+    private fun restoreSession(gameId: String, team: Team) {
+        viewModelScope.launch {
+            gameState.update { it.copy(step = GameStep.Loading) }
+            try {
+                val game = gameApiService.findGameById(gameId).body()
+                    ?.toGameSession()
+                    ?.copy(role = team)
+                if (game != null) {
+                    gameState.update { it.copy(step = GameStep.Game, game = game) }
+                    Log.d("qwer", "Session restored for gameId=$gameId team=$team")
+                } else {
+                    // Game no longer exists on the server — clean up and go to setup.
+                    clearPersistedSession()
+                    gameState.update { it.copy(step = GameStep.Setup) }
+                }
+            } catch (e: Exception) {
+                Log.e("qwer", "Failed to restore session", e)
+                gameState.update { it.copy(step = GameStep.Setup) }
+            }
+        }
     }
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
@@ -65,15 +117,25 @@ class GameViewModel @Inject constructor(
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun observeLocation() {
-        if (gameState.value.game.role == Team.MISTER_X) {
-            locationProvider.locationsFlow()
-                .onEach { isTowerCloseBy(it) }
-                .launchIn(viewModelScope)
-        } else {
+        when (gameState.value.game.role) {
+            Team.MISTER_X -> observeTowerUpdates()
+            Team.DETECTIVE -> observeGameUpdates()
+        }
+    }
+
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
+    private fun observeTowerUpdates() {
+        locationProvider.locationsFlow()
+            .onEach { isTowerCloseBy(it) }
+            .launchIn(viewModelScope)
+    }
+
+    private fun observeGameUpdates() {
+        if (gameState.value.game.role == Team.DETECTIVE) {
             viewModelScope.launch {
                 while (isActive) {
                     val game = gameApiService.findGameById(gameState.value.game.id!!).body()!!
-                        .toGameSession()
+                        .toGameSession().copy(role = Team.DETECTIVE)
                     gameState.update { it.copy(game = game) }
                     delay(1.minutes)
                 }
@@ -107,6 +169,7 @@ class GameViewModel @Inject constructor(
         viewModelScope.launch {
             gameState.update { it.copy(step = GameStep.Loading) }
             gameApiService.endGame(gameState.value.game.id!!)
+            clearPersistedSession()
             gameState.update { it.copy(step = GameStep.Setup) }
         }
     }
@@ -126,6 +189,7 @@ class GameViewModel @Inject constructor(
             val game = gameApiService.joinGame(JoinGameRequestDto(gameId = event.gameId)).body()
                 ?.toGameSession()
                 ?: throw IllegalStateException("Game must not be null")
+            persistSession(game.id!!, game.role)
             gameState.update { it.copy(step = GameStep.Game, game = game) }
         }
     }
@@ -135,7 +199,27 @@ class GameViewModel @Inject constructor(
             gameState.update { it.copy(step = GameStep.Loading) }
             val game = gameApiService.createGame(CreateGameRequestDto()).body()?.toGameSession()
                 ?: throw IllegalStateException("game must not be null")
+            persistSession(game.id!!, game.role)
             gameState.update { it.copy(step = GameStep.Game, game = game) }
         }
+    }
+
+    private suspend fun persistSession(gameId: String, team: Team) {
+        // SavedStateHandle — survives process death
+        savedStateHandle[KEY_GAME_ID] = gameId
+        savedStateHandle[KEY_TEAM] = team.name
+        // DataStore — survives full app kill / device reboot
+        gameSessionRepository.save(gameId, team.name)
+    }
+
+    private suspend fun clearPersistedSession() {
+        savedStateHandle.remove<String>(KEY_GAME_ID)
+        savedStateHandle.remove<String>(KEY_TEAM)
+        gameSessionRepository.clear()
+    }
+
+    companion object {
+        private const val KEY_GAME_ID = "game_id"
+        private const val KEY_TEAM = "team"
     }
 }

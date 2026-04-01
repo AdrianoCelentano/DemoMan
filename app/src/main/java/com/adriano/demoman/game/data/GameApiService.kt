@@ -71,10 +71,6 @@ data class JoinGameRequestDto(
     val team: TeamDto = TeamDto.MISTER_X
 )
 
-data class EndGameRequestDto(
-    val gameId: String,
-)
-
 data class ActivateTowerRequestDto(
     val gameId: String,
     val towerIndex: Int,

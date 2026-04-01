@@ -63,6 +63,7 @@ dependencies {
     // Hilt
     implementation(libs.hilt.android)
     implementation(libs.logging.interceptor)
+    implementation(libs.datastore.preferences)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
