@@ -4,6 +4,7 @@ import androidx.compose.ui.semantics.Role
 import com.google.android.gms.maps.model.LatLng
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -26,11 +27,11 @@ interface GameApiService {
         @Body request: JoinGameRequestDto
     ): Response<GameDto>
 
-    @POST
+    @POST("/api/game/activate-tower")
     suspend fun activateTower(@Body request: ActivateTowerRequestDto): Response<GameDto>
 
-    @POST
-    suspend fun endGame(@Body request: EndGameRequestDto)
+    @DELETE("/api/game/{id}")
+    suspend fun endGame(@Path("id") id: String): Response<Unit>
 }
 
 enum class TeamDto {
@@ -78,4 +79,3 @@ data class ActivateTowerRequestDto(
     val gameId: String,
     val towerIndex: Int,
 )
-

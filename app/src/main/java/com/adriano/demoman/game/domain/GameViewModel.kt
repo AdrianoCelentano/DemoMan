@@ -40,7 +40,6 @@ class GameViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     fun onEvent(event: GameEvent) {
         Log.d("qwer", "Event: $event")
@@ -107,7 +106,7 @@ class GameViewModel @Inject constructor(
     private fun endGame() {
         viewModelScope.launch {
             gameState.update { it.copy(step = GameStep.Loading) }
-            gameApiService.endGame(EndGameRequestDto(gameState.value.game.id!!))
+            gameApiService.endGame(gameState.value.game.id!!)
             gameState.update { it.copy(step = GameStep.Setup) }
         }
     }

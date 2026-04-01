@@ -55,8 +55,7 @@ fun GameMapScreen(
         val centerPos = remember { findCenter(game.playground) }
 
         val cameraPositionState = rememberCameraPositionState {
-            CameraPosition(centerPos, 16f, 0f, 30f)
-            position = CameraPosition(centerPos, 16.5f, 40f, 10f)
+            position = CameraPosition(centerPos, 16.5f, 0f, 10f)
         }
 
         GoogleMap(

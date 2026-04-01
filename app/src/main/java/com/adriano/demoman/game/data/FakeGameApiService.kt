@@ -85,8 +85,9 @@ class FakeGameApiService : GameApiService {
         return Response.success(updatedGame)
     }
 
-    override suspend fun endGame(request: EndGameRequestDto) {
-        games.removeIf { it.id == request.gameId }
+    override suspend fun endGame(id: String): Response<Unit> {
+        games.removeIf { it.id == id }
+        return Response.success(Unit)
     }
 
     private fun generateRandomTowers(): List<TowerDto> {

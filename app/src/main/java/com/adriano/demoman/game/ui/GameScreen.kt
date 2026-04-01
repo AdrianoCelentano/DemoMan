@@ -66,7 +66,7 @@ fun GameListScreen(
     onEvent: (GameEvent) -> Unit,
     innerPadding: PaddingValues
 ) {
-    BackHandler() { onEvent(GameEvent.GoToSetup) }
+    BackHandler() { onEvent(GameEvent.EndGame) }
     LazyColumn(modifier = Modifier
         .fillMaxSize()
         .padding(innerPadding)) {
