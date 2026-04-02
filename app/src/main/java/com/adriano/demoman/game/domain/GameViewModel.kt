@@ -52,6 +52,8 @@ class GameViewModel @Inject constructor(
     private var gameUpdatesJob: Job? = null
     private var timerJob: Job? = null
     val gameState = MutableStateFlow(GameViewState())
+    
+    private val activatingTowers = mutableSetOf<Int>()
 
     init {
         gameState
@@ -189,14 +191,27 @@ class GameViewModel @Inject constructor(
     }
 
     private fun activateTower(event: GameEvent.ActivateTower) {
+        if (activatingTowers.contains(event.towerIndex)) return
+        activatingTowers.add(event.towerIndex)
+
         Log.d("qwer", "activate tower ${event.towerIndex}")
         val game = gameState.value.game
         val request = ActivateTowerRequestDto(game.id!!, event.towerIndex)
         viewModelScope.launch {
-            val updatdedGame = gameApiService.activateTower(request).body()!!.toGameSession()
-            triggerVibration()
-            Log.d("qwer", "new game towers ${updatdedGame.towers}")
-            gameState.update { it.copy(game = updatdedGame) }
+            try {
+                val response = gameApiService.activateTower(request)
+                if (response.isSuccessful) {
+                    val updatdedGame = response.body()!!.toGameSession()
+                    triggerVibration()
+                    Log.d("qwer", "new game towers ${updatdedGame.towers}")
+                    gameState.update { it.copy(game = updatdedGame) }
+                } else {
+                    activatingTowers.remove(event.towerIndex)
+                }
+            } catch (e: Exception) {
+                Log.e("VM", "Failed to activate tower", e)
+                activatingTowers.remove(event.towerIndex)
+            }
         }
     }
 
@@ -247,8 +262,8 @@ class GameViewModel @Inject constructor(
         Log.d("qwer", "new player loaction")
         val playerPosition = event.position
         val game = gameState.value.game
-        game.towers.filter { it.isActive.not() }.forEachIndexed { index, tower ->
-            if (tower.position.isWithinRange(playerPosition)) {
+        game.towers.forEachIndexed { index, tower ->
+            if (tower.position.isWithinRange(playerPosition) && tower.isActive.not() && !activatingTowers.contains(index)) {
                 Log.d("qwer", "tower in Range")
                 onEvent(GameEvent.ActivateTower(index))
             }
@@ -273,7 +288,7 @@ class GameViewModel @Inject constructor(
                     val gameDto = gameApiService.findGameById(gameState.value.game.id!!).body()!!
                     val game = gameDto.toGameSession().copy(role = Team.DETECTIVE)
                     if (gameState.value.game.towers.count { it.isActive } != game.towers.count { it.isActive })
-                    gameState.update { it.copy(game = game) }
+                        gameState.update { it.copy(game = game) }
                     delay(1.minutes)
                 }
             }
@@ -301,6 +316,7 @@ class GameViewModel @Inject constructor(
             timerJob?.cancel()
             timerJob = null
             clearPersistedSession()
+            activatingTowers.clear()
             gameState.update {
                 it.copy(
                     step = GameStep.Setup,
