@@ -2,9 +2,15 @@ package com.adriano.demoman.game.domain
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.location.Location
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
 import androidx.annotation.RequiresPermission
+import androidx.core.content.getSystemService
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,9 +24,11 @@ import com.adriano.demoman.game.data.LocationProvider
 import com.adriano.demoman.game.data.toGameSession
 import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -28,13 +36,15 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 @HiltViewModel
 class GameViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val gameApiService: GameApiService,
     private val locationProvider: LocationProvider,
     private val gameSessionRepository: GameSessionRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val DEBUG_ENABLED = false
@@ -71,6 +81,7 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun startGameTimer() {
         if (timerJob != null) return
         timerJob = viewModelScope.launch {
@@ -100,7 +111,7 @@ class GameViewModel @Inject constructor(
     private fun createGameBack() {
         val createGameState = gameState.value.step
         if (createGameState !is CreateGameStep) return
-        when  {
+        when {
             createGameState.bounds.isEmpty() -> gameState.update { it.copy(step = GameStep.Setup) }
             createGameState.towers.isEmpty() -> removeBoundary(createGameState.bounds.last())
             else -> removeTower(createGameState.towers.last())
@@ -183,8 +194,29 @@ class GameViewModel @Inject constructor(
         val request = ActivateTowerRequestDto(game.id!!, event.towerIndex)
         viewModelScope.launch {
             val updatdedGame = gameApiService.activateTower(request).body()!!.toGameSession()
-            Log.d("qwer", "new game towers ${game.towers}")
+            triggerVibration()
+            Log.d("qwer", "new game towers ${updatdedGame.towers}")
             gameState.update { it.copy(game = updatdedGame) }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun triggerVibration() {
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager =
+                context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            vibratorManager.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Vibrate for 500 milliseconds at default amplitude
+            vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(500)
         }
     }
 
@@ -198,9 +230,16 @@ class GameViewModel @Inject constructor(
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun observePlayerLocation() {
-        locationProvider.locationsFlow()
-            .onEach { onEvent(GameEvent.PlayerPositionUpdate(it)) }
-            .launchIn(viewModelScope)
+        flow {
+            gameState.value.game.towers.forEachIndexed { index, tower ->
+                delay(5.seconds)
+                Log.d("qwer", "indx: $index, position: ${tower.position}")
+                emit(onEvent(GameEvent.PlayerPositionUpdate(tower.position)))
+            }
+        }.launchIn(viewModelScope)
+//        locationProvider.locationsFlow()
+//            .onEach { onEvent(GameEvent.PlayerPositionUpdate(it)) }
+//            .launchIn(viewModelScope)
     }
 
     @SuppressLint("MissingPermission")
@@ -216,7 +255,14 @@ class GameViewModel @Inject constructor(
         }
 
         if (DEBUG_ENABLED && game.role == Team.MISTER_X) {
-            gameState.update { it.copy(debugState = calculateDebugState(playerPosition, game.towers)) }
+            gameState.update {
+                it.copy(
+                    debugState = calculateDebugState(
+                        playerPosition,
+                        game.towers
+                    )
+                )
+            }
         }
     }
 
@@ -226,6 +272,7 @@ class GameViewModel @Inject constructor(
                 while (isActive) {
                     val gameDto = gameApiService.findGameById(gameState.value.game.id!!).body()!!
                     val game = gameDto.toGameSession().copy(role = Team.DETECTIVE)
+                    if (gameState.value.game.towers.count { it.isActive } != game.towers.count { it.isActive })
                     gameState.update { it.copy(game = game) }
                     delay(1.minutes)
                 }
@@ -254,7 +301,13 @@ class GameViewModel @Inject constructor(
             timerJob?.cancel()
             timerJob = null
             clearPersistedSession()
-            gameState.update { it.copy(step = GameStep.Setup, remainingTime = null, debugState = null) }
+            gameState.update {
+                it.copy(
+                    step = GameStep.Setup,
+                    remainingTime = null,
+                    debugState = null
+                )
+            }
         }
     }
 
@@ -277,11 +330,19 @@ class GameViewModel @Inject constructor(
                 )
             )
             if (response.isSuccessful) {
-                val gameDto = response.body() ?: throw IllegalStateException("Game must not be null")
+                val gameDto =
+                    response.body() ?: throw IllegalStateException("Game must not be null")
                 val game = gameDto.toGameSession()
-                val remainingTime = calculateRemainingTime(gameDto.startTimeStamp, game.gameDurationInMinutes)
+                val remainingTime =
+                    calculateRemainingTime(gameDto.startTimeStamp, game.gameDurationInMinutes)
                 persistSession(game.id!!, game.role, gameDto.startTimeStamp)
-                gameState.update { it.copy(step = GameStep.Game, game = game, remainingTime = remainingTime) }
+                gameState.update {
+                    it.copy(
+                        step = GameStep.Game,
+                        game = game,
+                        remainingTime = remainingTime
+                    )
+                }
             } else {
                 // Handle error (e.g., wrong password)
                 // For now, just go back to the list
@@ -304,11 +365,19 @@ class GameViewModel @Inject constructor(
                     towers = createGameState.towers.map { LatLngDto(it.latitude, it.longitude) },
                     startTimeStamp = startTimeStamp,
                     gameDurationInMinutes = createGameState.gameDurationInMinutes
-                )).body() ?: throw IllegalStateException("game must not be null")
+                )
+            ).body() ?: throw IllegalStateException("game must not be null")
             val game = gameDto.toGameSession()
             val remainingTime = calculateRemainingTime(startTimeStamp, game.gameDurationInMinutes)
             persistSession(game.id!!, game.role, startTimeStamp)
-            gameState.update { it.copy(step = GameStep.Game, game = game, remainingTime = remainingTime) }
+            gameState.update {
+                it.copy(
+                    step = GameStep.Game,
+                    game = game,
+                    remainingTime = remainingTime
+                )
+            }
+            triggerVibration()
         }
     }
 
@@ -362,9 +431,19 @@ class GameViewModel @Inject constructor(
                 val game = gameDto?.toGameSession()?.copy(role = team)
                 if (game != null) {
                     val actualStartTime = gameDto.startTimeStamp ?: startTimeStamp
-                    val remainingTime = calculateRemainingTime(actualStartTime, game.gameDurationInMinutes)
-                    gameState.update { it.copy(step = GameStep.Game, game = game, remainingTime = remainingTime) }
-                    Log.d("qwer", "Session restored for gameId=$gameId team=$team remainingTime=$remainingTime")
+                    val remainingTime =
+                        calculateRemainingTime(actualStartTime, game.gameDurationInMinutes)
+                    gameState.update {
+                        it.copy(
+                            step = GameStep.Game,
+                            game = game,
+                            remainingTime = remainingTime
+                        )
+                    }
+                    Log.d(
+                        "qwer",
+                        "Session restored for gameId=$gameId team=$team remainingTime=$remainingTime"
+                    )
                 } else {
                     // Game no longer exists on the server — clean up and go to setup.
                     clearPersistedSession()
