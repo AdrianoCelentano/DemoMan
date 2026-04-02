@@ -43,7 +43,7 @@ class GameViewModel @Inject constructor(
 
     init {
         gameState
-            .onEach { Log.d("qwer", "State: $it") }
+            .onEach { Log.d("VM", "State: $it") }
             .launchIn(viewModelScope)
 
         restoreSessionIfNeeded()
@@ -51,7 +51,7 @@ class GameViewModel @Inject constructor(
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     fun onEvent(event: GameEvent) {
-        Log.d("qwer", "Event: $event")
+        Log.d("VM", "Event: $event")
         when (event) {
             GameEvent.CreateGame -> createGame()
             is GameEvent.JoinGame -> joinGame(event)
@@ -176,10 +176,12 @@ class GameViewModel @Inject constructor(
     }
 
     private fun activateTower(event: GameEvent.ActivateTower) {
+        Log.d("qwer", "activate tower ${event.towerIndex}")
         val game = gameState.value.game
         val request = ActivateTowerRequestDto(game.id!!, event.towerIndex)
         viewModelScope.launch {
             val updatdedGame = gameApiService.activateTower(request).body()!!.toGameSession()
+            Log.d("qwer", "new game towers ${game.towers}")
             gameState.update { it.copy(game = updatdedGame) }
         }
     }
@@ -201,10 +203,12 @@ class GameViewModel @Inject constructor(
 
     @SuppressLint("MissingPermission")
     private fun playerPositionUpdate(event: GameEvent.PlayerPositionUpdate) {
+        Log.d("qwer", "new player loaction")
         val playerPosition = event.position
         val game = gameState.value.game
         game.towers.filter { it.isActive.not() }.forEachIndexed { index, tower ->
             if (tower.position.isWithinRange(playerPosition)) {
+                Log.d("qwer", "tower in Range")
                 onEvent(GameEvent.ActivateTower(index))
             }
         }

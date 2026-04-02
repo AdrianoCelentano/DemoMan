@@ -39,6 +39,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -87,10 +90,6 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
             label = "MarkerScale"
         )
 
-        val context = LocalContext.current
-        val mapStyleOptions = remember {
-            MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style)
-        }
         val playground = remember(state.bounds) { createOuterBounds(state.bounds) }
         val cameraPositionState = rememberCameraPositionState()
         LaunchedEffect(hasLocationPermission) {
@@ -122,9 +121,7 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
             cameraPositionState,
             hasLocationPermission,
             state,
-            mapStyleOptions,
             viewModel,
-            context,
             playground,
             scale
         )
@@ -135,18 +132,33 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
     }
 }
 
+@SuppressLint("MissingPermission")
 @Composable
 private fun CreateGameMap(
     innerPadding: PaddingValues,
     cameraPositionState: CameraPositionState,
     hasLocationPermission: Boolean,
     state: CreateGameStep,
-    mapStyleOptions: MapStyleOptions,
     viewModel: GameViewModel,
-    context: Context,
     playground: List<LatLng>,
     scale: Float
 ) {
+    val context = LocalContext.current
+    val mapStyleOptions = remember(state.step == CreateGameSteps.Boundary) {
+        val resourceId = if (state.step == CreateGameSteps.Boundary) R.raw.gray_map_style
+        else R.raw.map_style
+        MapStyleOptions.loadRawResourceStyle(context, resourceId)
+    }
+
+    val saturation by animateFloatAsState(
+        targetValue = if (state.step == CreateGameSteps.Boundary) 0.2f else 1f,
+        animationSpec = tween(1000)
+    )
+
+    val matrix = remember(saturation) {
+        ColorMatrix().apply { setToSaturation(saturation) }
+    }
+
     Box(
         modifier = Modifier
             .padding(innerPadding)
@@ -154,11 +166,12 @@ private fun CreateGameMap(
     ) {
 
         GoogleMap(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize(),
             cameraPositionState = cameraPositionState,
             properties = MapProperties(
                 isMyLocationEnabled = hasLocationPermission,
-                mapStyleOptions = if (state.step != CreateGameSteps.Boundary) mapStyleOptions else null
+                mapStyleOptions = mapStyleOptions
             ),
             uiSettings = MapUiSettings(),
             onMapClick = { position ->
@@ -338,7 +351,9 @@ fun CreateGameDialog(
                     "SPEICHERN",
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        color = if (name.isNotBlank() && durationText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        color = if (name.isNotBlank() && durationText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
+                            alpha = 0.3f
+                        )
                     )
                 )
             }
