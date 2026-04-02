@@ -126,7 +126,7 @@ private fun GameMap(
                 game.playground.forEach { boundsBuilder.include(it) }
                 scope.launch {
                     cameraPositionState.animate(
-                        update = newLatLngBounds(boundsBuilder.build(), 20),
+                        update = newLatLngBounds(boundsBuilder.build(), 30),
                         durationMs = 1000
                     )
                 }
@@ -143,6 +143,7 @@ private fun GameMap(
             )
         ) {
             TowerMarker(game.towers, scale)
+            CornerMarker(game.playground, scale)
             Polygon(
                 points = bounds,
                 holes = listOf(game.playground),
@@ -192,6 +193,22 @@ private fun GameMap(
             DebugOverlay(debugState)
         }
     }
+}
+
+@Composable
+fun CornerMarker(bounds: List<LatLng>, scale: Float) {
+    val context = LocalContext.current
+    val cornerBitmap = remember { getResizedBitmap(context, R.drawable.border_marker, 82, 82) }
+    bounds.forEach { position ->
+        Marker(
+            alpha = scale,
+            flat = true,
+            anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.8f),
+            state = rememberUpdatedMarkerState(position),
+            icon = cornerBitmap,
+        )
+    }
+
 }
 
 private fun formatTime(seconds: Long): String {

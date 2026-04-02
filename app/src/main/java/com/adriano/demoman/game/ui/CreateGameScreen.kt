@@ -110,7 +110,7 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
                 val boundsBuilder = LatLngBounds.Builder()
                 state.bounds.forEach { boundsBuilder.include(it) }
                 cameraPositionState.animate(
-                    update = newLatLngBounds(boundsBuilder.build(), 20),
+                    update = newLatLngBounds(boundsBuilder.build(), 30),
                     durationMs = 1000
                 )
             }
