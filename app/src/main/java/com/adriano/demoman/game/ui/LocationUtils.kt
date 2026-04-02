@@ -29,3 +29,22 @@ fun findCenter(points: List<LatLng>): LatLng {
     }
     return builder.build().center
 }
+
+fun List<LatLng>.orderClockwise(): List<LatLng> {
+    if (size != 4) return this // Logic designed for quadrilaterals
+
+    // 1. Sort by Latitude descending (Top to Bottom)
+    val sortedByLat = this.sortedByDescending { it.latitude }
+
+    // 2. Take the two highest points and sort them by Longitude
+    val topTwo = sortedByLat.take(2).sortedBy { it.longitude }
+    val topLeft = topTwo[0]
+    val topRight = topTwo[1]
+
+    // 3. Take the two lowest points and sort them by Longitude (descending for clockwise)
+    val bottomTwo = sortedByLat.takeLast(2).sortedByDescending { it.longitude }
+    val bottomRight = bottomTwo[0]
+    val bottomLeft = bottomTwo[1]
+
+    return listOf(topLeft, topRight, bottomRight, bottomLeft)
+}

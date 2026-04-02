@@ -119,7 +119,6 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
         CreateGameMap(
             innerPadding,
             cameraPositionState,
-            hasLocationPermission,
             state,
             viewModel,
             playground,
@@ -137,7 +136,6 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
 private fun CreateGameMap(
     innerPadding: PaddingValues,
     cameraPositionState: CameraPositionState,
-    hasLocationPermission: Boolean,
     state: CreateGameStep,
     viewModel: GameViewModel,
     playground: List<LatLng>,
@@ -170,8 +168,9 @@ private fun CreateGameMap(
                 .fillMaxSize(),
             cameraPositionState = cameraPositionState,
             properties = MapProperties(
-                isMyLocationEnabled = hasLocationPermission,
-                mapStyleOptions = mapStyleOptions
+                isMyLocationEnabled = true,
+                mapStyleOptions = mapStyleOptions,
+                maxZoomPreference = 14f,
             ),
             uiSettings = MapUiSettings(),
             onMapClick = { position ->

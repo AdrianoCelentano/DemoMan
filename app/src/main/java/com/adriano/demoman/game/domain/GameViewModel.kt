@@ -22,6 +22,7 @@ import com.adriano.demoman.game.data.JoinGameRequestDto
 import com.adriano.demoman.game.data.LatLngDto
 import com.adriano.demoman.game.data.LocationProvider
 import com.adriano.demoman.game.data.toGameSession
+import com.adriano.demoman.game.ui.orderClockwise
 import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -178,7 +179,7 @@ class GameViewModel @Inject constructor(
         val createGameState = gameState.value.step
         if (createGameState !is CreateGameStep) return
         val newBounds = createGameState.bounds + position
-        val newState = createGameState.copy(bounds = newBounds)
+        val newState = createGameState.copy(bounds = newBounds.orderClockwise())
         gameState.update { it.copy(step = newState) }
     }
 
@@ -371,6 +372,7 @@ class GameViewModel @Inject constructor(
                         remainingTime = remainingTime
                     )
                 }
+                triggerVibration()
             } else {
                 // Handle error (e.g., wrong password)
                 // For now, just go back to the list

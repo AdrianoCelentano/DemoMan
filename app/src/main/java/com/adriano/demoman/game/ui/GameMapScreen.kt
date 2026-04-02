@@ -63,7 +63,7 @@ fun GameMapScreen(
     ExitGameDialog(onEvent)
 
     if (hasLocationPermission) {
-        GameMap(innerPadding, game, hasLocationPermission, remainingTime, debugState, onEvent)
+        GameMap(innerPadding, game, remainingTime, debugState, onEvent)
     } else {
         LocationPermissionScreen(
             onRequestPermission = { permissionRequestCount++ }
@@ -75,7 +75,6 @@ fun GameMapScreen(
 private fun GameMap(
     innerPadding: PaddingValues,
     game: GameSession,
-    hasLocationPermission: Boolean,
     remainingTime: Long?,
     debugState: DebugViewState?,
     onEvent: (GameEvent) -> Unit
@@ -119,7 +118,7 @@ private fun GameMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
             properties = MapProperties(
-                isMyLocationEnabled = hasLocationPermission,
+                isMyLocationEnabled = true,
                 mapStyleOptions = mapStyleOptions
             ),
             onMapLoaded = {
