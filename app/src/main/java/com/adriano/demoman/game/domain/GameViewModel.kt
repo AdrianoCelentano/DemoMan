@@ -229,7 +229,7 @@ class GameViewModel @Inject constructor(
             gameState.update { it.copy(step = GameStep.Loading) }
             val game = gameApiService.createGame(
                 CreateGameRequestDto(
-                name = createGameState.missionName,
+                missionName = createGameState.missionName,
                 password = createGameState.password.ifBlank { null },
                 bounds = createGameState.bounds.map { LatLngDto(it.latitude, it.longitude) },
                 towers = createGameState.towers.map { LatLngDto(it.latitude, it.longitude) }

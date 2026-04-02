@@ -63,7 +63,7 @@ data class GameDto(
 )
 
 data class CreateGameRequestDto(
-    val name: String,
+    val missionName: String,
     val password: String? = null,
     val team: TeamDto = TeamDto.DETECTIVE,
     val bounds: List<LatLngDto>,
