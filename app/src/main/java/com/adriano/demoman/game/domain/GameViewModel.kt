@@ -27,6 +27,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
@@ -52,7 +53,7 @@ class GameViewModel @Inject constructor(
     private var gameUpdatesJob: Job? = null
     private var timerJob: Job? = null
     val gameState = MutableStateFlow(GameViewState())
-    
+
     private val activatingTowers = mutableSetOf<Int>()
 
     init {
@@ -72,7 +73,7 @@ class GameViewModel @Inject constructor(
             GameEvent.GoToGameList -> goToGameList()
             GameEvent.EndGame -> endGame()
             GameEvent.GoToSetup -> gameState.update { it.copy(step = GameStep.Setup) }
-            GameEvent.ObserveLocation -> observeLocation()
+            GameEvent.ObserveLocation -> observePlayerLocation()
             is GameEvent.ActivateTower -> activateTower(event)
             GameEvent.GoToCreateGame -> gameState.update { it.copy(step = CreateGameStep()) }
             is GameEvent.CreateGameMapClick -> createGameMapClick(event.position)
@@ -80,6 +81,11 @@ class GameViewModel @Inject constructor(
             GameEvent.CreateGameBack -> createGameBack()
             is GameEvent.PlayerPositionUpdate -> playerPositionUpdate(event)
             GameEvent.StartGameTimer -> startGameTimer()
+            GameEvent.ObserveGameState -> observeGameUpdates()
+            GameEvent.StopObservingGameState -> {
+                gameUpdatesJob?.cancel()
+                gameUpdatesJob = null
+            }
         }
     }
 
@@ -236,15 +242,8 @@ class GameViewModel @Inject constructor(
     }
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
-    private fun observeLocation() {
-        when (gameState.value.game.role) {
-            Team.MISTER_X -> observePlayerLocation()
-            Team.DETECTIVE -> observeGameUpdates()
-        }
-    }
-
-    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun observePlayerLocation() {
+        if (gameState.value.game.role == Team.DETECTIVE) return
         flow {
             gameState.value.game.towers.forEachIndexed { index, tower ->
                 delay(5.seconds)
@@ -263,7 +262,10 @@ class GameViewModel @Inject constructor(
         val playerPosition = event.position
         val game = gameState.value.game
         game.towers.forEachIndexed { index, tower ->
-            if (tower.position.isWithinRange(playerPosition) && tower.isActive.not() && !activatingTowers.contains(index)) {
+            if (tower.position.isWithinRange(playerPosition) && tower.isActive.not() && !activatingTowers.contains(
+                    index
+                )
+            ) {
                 Log.d("qwer", "tower in Range")
                 onEvent(GameEvent.ActivateTower(index))
             }
@@ -282,16 +284,22 @@ class GameViewModel @Inject constructor(
     }
 
     private fun observeGameUpdates() {
-        if (gameState.value.game.role == Team.DETECTIVE) {
-            gameUpdatesJob = viewModelScope.launch {
-                while (isActive) {
-                    val gameDto = gameApiService.findGameById(gameState.value.game.id!!).body()!!
-                    val game = gameDto.toGameSession().copy(role = Team.DETECTIVE)
-                    if (gameState.value.game.towers.count { it.isActive } != game.towers.count { it.isActive })
-                        gameState.update { it.copy(game = game) }
-                    delay(1.minutes)
-                }
+        if (gameState.value.game.role == Team.MISTER_X) return
+        if (gameUpdatesJob?.isActive == true) return
+        gameUpdatesJob = viewModelScope.launch {
+            while (isActive) {
+                runCatching { fetchGameState() }
+                delay(1.minutes)
             }
+        }
+    }
+
+    private suspend fun fetchGameState() {
+        val gameDto =
+            gameApiService.findGameById(gameState.value.game.id!!).body()!!
+        val game = gameDto.toGameSession().copy(role = Team.DETECTIVE)
+        if (gameState.value.game.towers.count { it.isActive } != game.towers.count { it.isActive }) {
+            gameState.update { it.copy(game = game) }
         }
     }
 

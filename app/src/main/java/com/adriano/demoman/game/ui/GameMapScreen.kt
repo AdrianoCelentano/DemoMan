@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.adriano.demoman.R
 import com.adriano.demoman.game.domain.DebugViewState
 import com.adriano.demoman.game.domain.GameEvent
@@ -62,7 +63,7 @@ fun GameMapScreen(
     ExitGameDialog(onEvent)
 
     if (hasLocationPermission) {
-        GameMap(innerPadding, game, hasLocationPermission, remainingTime, debugState)
+        GameMap(innerPadding, game, hasLocationPermission, remainingTime, debugState, onEvent)
     } else {
         LocationPermissionScreen(
             onRequestPermission = { permissionRequestCount++ }
@@ -76,8 +77,16 @@ private fun GameMap(
     game: GameSession,
     hasLocationPermission: Boolean,
     remainingTime: Long?,
-    debugState: DebugViewState?
+    debugState: DebugViewState?,
+    onEvent: (GameEvent) -> Unit
 ) {
+    LifecycleResumeEffect(Unit) {
+        onEvent(GameEvent.ObserveGameState)
+        onPauseOrDispose {
+            onEvent(GameEvent.StopObservingGameState)
+        }
+    }
+    
     val mapLoaded = remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (mapLoaded.value) 1f else 0f,

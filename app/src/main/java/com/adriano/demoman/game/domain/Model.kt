@@ -72,6 +72,8 @@ sealed class GameEvent {
     data class PlayerPositionUpdate(val position: LatLng) : GameEvent()
     object GoToCreateGame : GameEvent()
     object CreateGame : GameEvent()
+    object ObserveGameState : GameEvent()
+    object StopObservingGameState : GameEvent()
     data class CreateGameMapClick(val position: LatLng) : GameEvent()
     data class UpdateCreateGameDetails(val name: String, val pass: String, val duration: Long) : GameEvent()
     data class ActivateTower(val towerIndex: Int): GameEvent()
