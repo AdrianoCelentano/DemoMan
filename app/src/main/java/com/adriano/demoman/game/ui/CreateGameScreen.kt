@@ -10,23 +10,25 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.adriano.demoman.R
-import com.adriano.demoman.game.domain.CreateGame
 import com.adriano.demoman.game.domain.CreateGameStep
+import com.adriano.demoman.game.domain.CreateGameSteps
 import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.game.domain.GameViewModel
-import com.google.android.gms.maps.CameraUpdate
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.CameraUpdateFactory.newLatLngBounds
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
@@ -34,20 +36,20 @@ import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polygon
 import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.maps.android.compose.rememberMarkerState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
+import kotlinx.coroutines.launch
 
 @SuppressLint("MissingPermission")
 @Composable
 fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewModel()) {
 
     val state = viewModel.gameState.collectAsState().value.step
-    if (state !is CreateGame) return
+    if (state !is CreateGameStep) return
 
-    BackHandler() { viewModel.onEvent(GameEvent.GoToSetup) }
+    BackHandler { viewModel.onEvent(GameEvent.GoToSetup) }
 
     val scale by animateFloatAsState(
-        targetValue = if (state.step != CreateGameStep.Boundary) 1f else 0f,
+        targetValue = if (state.step != CreateGameSteps.Boundary) 1f else 0f,
         animationSpec = tween(
             durationMillis = 2000,
             delayMillis = 500,
@@ -76,14 +78,29 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
             )
         }
     }
+    LaunchedEffect(state.bounds.size) {
+        if (state.bounds.size == 4) {
+            val boundsBuilder = LatLngBounds.Builder()
+            state.bounds.forEach { boundsBuilder.include(it) }
+            cameraPositionState.animate(
+                update = newLatLngBounds(boundsBuilder.build(), 20),
+                durationMs = 1000
+            )
+        }
+    }
 
-    Box(modifier = Modifier.padding(innerPadding)) {
+    Box(
+        modifier = Modifier
+            .padding(innerPadding)
+            .fillMaxSize()
+    ) {
+
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
             properties = MapProperties(
                 isMyLocationEnabled = hasLocationPermission,
-                mapStyleOptions = if (state.step != CreateGameStep.Boundary) mapStyleOptions else null
+                mapStyleOptions = if (state.step != CreateGameSteps.Boundary) mapStyleOptions else null
             ),
             uiSettings = MapUiSettings(),
             onMapClick = { position ->
@@ -111,7 +128,7 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
                 )
             }
 
-            if (state.step != CreateGameStep.Boundary) {
+            if (state.step != CreateGameSteps.Boundary) {
                 Polygon(
                     points = playground,
                     holes = listOf(state.bounds),
@@ -120,8 +137,19 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
                     strokeWidth = 4f
                 )
             }
-
         }
+
+        if (state.step == CreateGameSteps.Complete) {
+            MainActionButton(
+                text = "START !",
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(56.dp),
+                isPrimary = true,
+                onClick = { viewModel.onEvent(GameEvent.CreateGame) }
+            )
+        }
+
     }
 
 }

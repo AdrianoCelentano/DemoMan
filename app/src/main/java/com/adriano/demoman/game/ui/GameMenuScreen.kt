@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.adriano.demoman.R
-import com.adriano.demoman.game.domain.CreateGame
+import com.adriano.demoman.game.domain.CreateGameStep
 import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.game.domain.GameList
 import com.adriano.demoman.game.domain.GameStep
@@ -37,7 +37,7 @@ fun GameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewM
         GameStep.Game -> GameMapScreen(innerPadding, onEvent, state.game)
         GameStep.Loading -> LoadingScreen()
         GameStep.Setup -> SetupScreen(onEvent, innerPadding)
-        is CreateGame -> CreateGameScreen(innerPadding)
+        is CreateGameStep -> CreateGameScreen(innerPadding)
     }
 }
 
@@ -128,6 +128,7 @@ fun SetupScreen(onEvent: (GameEvent) -> Unit, innerPadding: PaddingValues) {
 
 @Composable
 fun MainActionButton(
+    modifier: Modifier = Modifier,
     text: String,
     onClick: () -> Unit,
     isPrimary: Boolean
@@ -144,15 +145,15 @@ fun MainActionButton(
         MaterialTheme.colorScheme.primary
     }
 
-    val modifier = if (isPrimary) {
-        Modifier
+    val modifierInternal = if (isPrimary) {
+        modifier
             .fillMaxWidth()
             .height(56.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(backgroundColor)
             .clickable(onClick = onClick)
     } else {
-        Modifier
+        modifier
             .fillMaxWidth()
             .height(56.dp)
             .clip(RoundedCornerShape(16.dp))
@@ -161,7 +162,7 @@ fun MainActionButton(
     }
 
     Box(
-        modifier = modifier,
+        modifier = modifierInternal,
         contentAlignment = Alignment.Center
     ) {
         Text(

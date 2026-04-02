@@ -1,6 +1,5 @@
 package com.adriano.demoman.game.domain
 
-import com.adriano.demoman.game.data.TeamDto
 import com.google.android.gms.maps.model.LatLng
 
 data class GameViewState(
@@ -41,20 +40,20 @@ sealed class GameStep {
     object Game : GameStep()
 }
 
-data class CreateGame(
+data class CreateGameStep(
     val bounds: List<LatLng> = emptyList(),
     val towers: List<LatLng> = emptyList()
 ) : GameStep() {
-    val step: CreateGameStep get() {
+    val step: CreateGameSteps get() {
         return when {
-            bounds.size < 4 -> CreateGameStep.Boundary
-            towers.size < 3 -> CreateGameStep.Tower
-            else -> CreateGameStep.Complete
+            bounds.size < 4 -> CreateGameSteps.Boundary
+            towers.size < 3 -> CreateGameSteps.Tower
+            else -> CreateGameSteps.Complete
         }
     }
 }
 
-enum class CreateGameStep {Boundary, Tower, Complete}
+enum class CreateGameSteps {Boundary, Tower, Complete}
 
 data class GameList(
     val games: List<GameSession>

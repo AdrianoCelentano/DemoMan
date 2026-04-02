@@ -9,9 +9,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.adriano.demoman.game.data.ActivateTowerRequestDto
+import com.adriano.demoman.game.data.CreateGameRequestDto
 import com.adriano.demoman.game.data.GameApiService
 import com.adriano.demoman.game.data.GameSessionRepository
 import com.adriano.demoman.game.data.JoinGameRequestDto
+import com.adriano.demoman.game.data.LatLngDto
 import com.adriano.demoman.game.data.LocationProvider
 import com.adriano.demoman.game.data.toGameSession
 import com.google.android.gms.maps.model.LatLng
@@ -55,24 +57,26 @@ class GameViewModel @Inject constructor(
             GameEvent.GoToSetup -> gameState.update { it.copy(step = GameStep.Setup) }
             GameEvent.ObserveLocation -> observeLocation()
             is GameEvent.ActivateTower -> activateTower(event)
-            GameEvent.GoToCreateGame -> gameState.update { it.copy(step = CreateGame()) }
+            GameEvent.GoToCreateGame -> gameState.update { it.copy(step = CreateGameStep()) }
             is GameEvent.CreateGameMapClick -> createGameMapClick(event.position)
         }
     }
 
     private fun createGameMapClick(position: LatLng) {
         val createGameState = gameState.value.step
-        if (createGameState !is CreateGame) return
-        when(createGameState.step) {
-            CreateGameStep.Boundary -> {
+        if (createGameState !is CreateGameStep) return
+        when (createGameState.step) {
+            CreateGameSteps.Boundary -> {
                 if (createGameState.bounds.contains(position)) removeBoundary(position)
                 else addBoundary(position)
             }
-            CreateGameStep.Tower -> {
+
+            CreateGameSteps.Tower -> {
                 if (createGameState.towers.contains(position)) removeTower(position)
                 else addTower(position)
             }
-            CreateGameStep.Complete -> {
+
+            CreateGameSteps.Complete -> {
                 //Create Game and navigate to game Map
             }
         }
@@ -80,7 +84,7 @@ class GameViewModel @Inject constructor(
 
     private fun addTower(position: LatLng) {
         val createGameState = gameState.value.step
-        if (createGameState !is CreateGame) return
+        if (createGameState !is CreateGameStep) return
         val newTowers = createGameState.towers + position
         val newState = createGameState.copy(towers = newTowers)
         gameState.update { it.copy(step = newState) }
@@ -88,7 +92,7 @@ class GameViewModel @Inject constructor(
 
     private fun removeTower(position: LatLng) {
         val createGameState = gameState.value.step
-        if (createGameState !is CreateGame) return
+        if (createGameState !is CreateGameStep) return
         val newTowers = createGameState.towers - position
         val newState = createGameState.copy(towers = newTowers)
         gameState.update { it.copy(step = newState) }
@@ -97,7 +101,7 @@ class GameViewModel @Inject constructor(
 
     private fun addBoundary(position: LatLng) {
         val createGameState = gameState.value.step
-        if (createGameState !is CreateGame) return
+        if (createGameState !is CreateGameStep) return
         val newBounds = createGameState.bounds + position
         val newState = createGameState.copy(bounds = newBounds)
         gameState.update { it.copy(step = newState) }
@@ -105,7 +109,7 @@ class GameViewModel @Inject constructor(
 
     private fun removeBoundary(position: LatLng) {
         val createGameState = gameState.value.step
-        if (createGameState !is CreateGame) return
+        if (createGameState !is CreateGameStep) return
         val newBounds = createGameState.bounds - position
         val newState = createGameState.copy(bounds = newBounds)
         gameState.update { it.copy(step = newState) }
@@ -206,13 +210,19 @@ class GameViewModel @Inject constructor(
     }
 
     private fun createGame() {
-//        viewModelScope.launch {
-//            gameState.update { it.copy(step = GameStep.Loading) }
-//            val game = gameApiService.createGame(CreateGameRequestDto()).body()?.toGameSession()
-//                ?: throw IllegalStateException("game must not be null")
-//            persistSession(game.id!!, game.role)
-//            gameState.update { it.copy(step = GameStep.Game, game = game) }
-//        }
+        val createGameState = gameState.value.step
+        if (createGameState !is CreateGameStep) return
+        viewModelScope.launch {
+            gameState.update { it.copy(step = GameStep.Loading) }
+            val game = gameApiService.createGame(
+                CreateGameRequestDto(
+                bounds = createGameState.bounds.map { LatLngDto(it.latitude, it.longitude) },
+                towers = createGameState.towers.map { LatLngDto(it.latitude, it.longitude) }
+            )).body()?.toGameSession()
+                ?: throw IllegalStateException("game must not be null")
+            persistSession(game.id!!, game.role)
+            gameState.update { it.copy(step = GameStep.Game, game = game) }
+        }
     }
 
     private suspend fun persistSession(gameId: String, team: Team) {

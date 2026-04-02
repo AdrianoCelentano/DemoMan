@@ -63,7 +63,9 @@ data class GameDto(
 )
 
 data class CreateGameRequestDto(
-    val team: TeamDto = TeamDto.DETECTIVE
+    val team: TeamDto = TeamDto.DETECTIVE,
+    val bounds: List<LatLngDto>,
+    val towers: List<LatLngDto>
 )
 
 data class JoinGameRequestDto(
