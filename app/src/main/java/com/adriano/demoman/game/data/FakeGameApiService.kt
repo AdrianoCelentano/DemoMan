@@ -15,7 +15,8 @@ class FakeGameApiService : GameApiService {
             ),
             playgroundBoundaries = eggensteinMap,
             towers = generateRandomTowers(),
-            startTimeStamp = System.currentTimeMillis()
+            startTimeStamp = System.currentTimeMillis(),
+            gameDurationInMinutes = 60
         )
     )
 
@@ -31,7 +32,8 @@ class FakeGameApiService : GameApiService {
                 )
             ),
             towers = request.towers.map { TowerDto(position = it) },
-            startTimeStamp = request.startTimeStamp
+            startTimeStamp = request.startTimeStamp,
+            gameDurationInMinutes = request.gameDurationInMinutes
         )
         games.add(newGame)
         return Response.success(newGame)
@@ -54,8 +56,8 @@ class FakeGameApiService : GameApiService {
     override suspend fun joinGame(request: JoinGameRequestDto): Response<GameDto> {
         val index = games.indexOfFirst { it.id == request.gameId }
         if (index == -1) {
-            val errorBody = "Game not found".toResponseBody("text/plain".toMediaTypeOrNull())
-            return Response.error(404, errorBody)
+            val errorBody = "Game not found".toResponseBody("text/plain".toResponseBody().toString().toMediaTypeOrNull())
+            return Response.error(404, "Game not found".toResponseBody("text/plain".toMediaTypeOrNull()))
         }
 
         val game = games[index]

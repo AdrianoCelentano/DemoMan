@@ -15,7 +15,8 @@ data class GameSession(
     val players: List<Player> = emptyList(),
     val towers: List<Tower> = emptyList(),
     val role: Team = Team.DETECTIVE,
-    val startTimeStamp: Long? = null
+    val startTimeStamp: Long? = null,
+    val gameDurationInMinutes: Long = 60
 )
 
 enum class Team {
@@ -43,6 +44,7 @@ sealed class GameStep {
 data class CreateGameStep(
     val missionName: String = "IMPOSSIBLE",
     val password: String = "",
+    val gameDurationInMinutes: Long = 60,
     val bounds: List<LatLng> = emptyList(),
     val towers: List<LatLng> = emptyList()
 ) : GameStep() {
@@ -70,7 +72,7 @@ sealed class GameEvent {
     object GoToCreateGame : GameEvent()
     object CreateGame : GameEvent()
     data class CreateGameMapClick(val position: LatLng) : GameEvent()
-    data class UpdateCreateGameDetails(val name: String, val pass: String) : GameEvent()
+    data class UpdateCreateGameDetails(val name: String, val pass: String, val duration: Long) : GameEvent()
     data class ActivateTower(val towerIndex: Int): GameEvent()
     data class JoinGame(val gameId: String, val password: String? = null) : GameEvent()
     object EndGame : GameEvent() // after all towers are activated or MisterX got caught

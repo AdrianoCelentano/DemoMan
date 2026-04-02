@@ -59,7 +59,8 @@ data class GameDto(
     val playgroundBoundaries: List<LatLngDto>,
     val players: List<PlayerDto> = emptyList(),
     val towers: List<TowerDto> = emptyList(),
-    val startTimeStamp: Long? = null
+    val startTimeStamp: Long? = null,
+    val gameDurationInMinutes: Long? = null
 )
 
 data class CreateGameRequestDto(
@@ -68,7 +69,8 @@ data class CreateGameRequestDto(
     val team: TeamDto = TeamDto.DETECTIVE,
     val bounds: List<LatLngDto>,
     val towers: List<LatLngDto>,
-    val startTimeStamp: Long
+    val startTimeStamp: Long,
+    val gameDurationInMinutes: Long
 )
 
 data class JoinGameRequestDto(

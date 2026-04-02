@@ -16,7 +16,8 @@ fun GameDto.toGameSession(): GameSession {
         towers = towers.map { it.toTowers() },
         role = (if (players.size == 1) DETECTIVE else MISTER_X),
         playground = playgroundBoundaries.map { LatLng(it.latitude, it.longitude) },
-        startTimeStamp = startTimeStamp
+        startTimeStamp = startTimeStamp,
+        gameDurationInMinutes = gameDurationInMinutes ?: 60
     )
 }
 

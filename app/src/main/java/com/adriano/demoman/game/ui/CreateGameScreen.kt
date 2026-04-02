@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -75,10 +77,56 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
     val hasLocationPermission = hasLocationPermission(permissionRequestCount)
 
     if (hasLocationPermission) {
+        val scale by animateFloatAsState(
+            targetValue = if (state.step != CreateGameSteps.Boundary) 1f else 0f,
+            animationSpec = tween(
+                durationMillis = 2000,
+                delayMillis = 500,
+                easing = FastOutSlowInEasing
+            ),
+            label = "MarkerScale"
+        )
+
+        val context = LocalContext.current
+        val mapStyleOptions = remember {
+            MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style)
+        }
+        val playground = remember(state.bounds) { createOuterBounds(state.bounds) }
+        val cameraPositionState = rememberCameraPositionState()
+        LaunchedEffect(hasLocationPermission) {
+            if (hasLocationPermission) {
+                val location = viewModel.lastLocation()
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newLatLngZoom(
+                        LatLng(
+                            location.latitude,
+                            location.longitude
+                        ), 15f
+                    ), 1000
+                )
+            }
+        }
+        LaunchedEffect(state.bounds.size) {
+            if (state.bounds.size == 4) {
+                val boundsBuilder = LatLngBounds.Builder()
+                state.bounds.forEach { boundsBuilder.include(it) }
+                cameraPositionState.animate(
+                    update = newLatLngBounds(boundsBuilder.build(), 20),
+                    durationMs = 1000
+                )
+            }
+        }
+
         CreateGameMap(
             innerPadding,
+            cameraPositionState,
+            hasLocationPermission,
             state,
+            mapStyleOptions,
             viewModel,
+            context,
+            playground,
+            scale
         )
     } else {
         LocationPermissionScreen(
@@ -87,52 +135,18 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
     }
 }
 
-@SuppressLint("MissingPermission")
 @Composable
 private fun CreateGameMap(
     innerPadding: PaddingValues,
+    cameraPositionState: CameraPositionState,
+    hasLocationPermission: Boolean,
     state: CreateGameStep,
+    mapStyleOptions: MapStyleOptions,
     viewModel: GameViewModel,
+    context: Context,
+    playground: List<LatLng>,
+    scale: Float
 ) {
-
-    val scale by animateFloatAsState(
-        targetValue = if (state.step != CreateGameSteps.Boundary) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = 2000,
-            delayMillis = 500,
-            easing = FastOutSlowInEasing
-        ),
-        label = "MarkerScale"
-    )
-
-    val context = LocalContext.current
-    val mapStyleOptions = remember {
-        MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style)
-    }
-    val playground = remember(state.bounds) { createOuterBounds(state.bounds) }
-    val cameraPositionState = rememberCameraPositionState()
-    LaunchedEffect(Unit) {
-        val location = viewModel.lastLocation()
-        cameraPositionState.animate(
-            CameraUpdateFactory.newLatLngZoom(
-                LatLng(
-                    location.latitude,
-                    location.longitude
-                ), 15f
-            ), 1000
-        )
-    }
-    LaunchedEffect(state.bounds.size) {
-        if (state.bounds.size == 4) {
-            val boundsBuilder = LatLngBounds.Builder()
-            state.bounds.forEach { boundsBuilder.include(it) }
-            cameraPositionState.animate(
-                update = newLatLngBounds(boundsBuilder.build(), 20),
-                durationMs = 1000
-            )
-        }
-    }
-
     Box(
         modifier = Modifier
             .padding(innerPadding)
@@ -143,7 +157,7 @@ private fun CreateGameMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
             properties = MapProperties(
-                isMyLocationEnabled = true,
+                isMyLocationEnabled = hasLocationPermission,
                 mapStyleOptions = if (state.step != CreateGameSteps.Boundary) mapStyleOptions else null
             ),
             uiSettings = MapUiSettings(),
@@ -218,9 +232,10 @@ private fun CreateGameMap(
             CreateGameDialog(
                 initialName = state.missionName,
                 initialPassword = state.password,
+                initialDuration = state.gameDurationInMinutes,
                 onDismiss = { showDialog = false },
-                onSave = { name, pass ->
-                    viewModel.onEvent(GameEvent.UpdateCreateGameDetails(name, pass))
+                onSave = { name, pass, duration ->
+                    viewModel.onEvent(GameEvent.UpdateCreateGameDetails(name, pass, duration))
                     showDialog = false
                 }
             )
@@ -233,11 +248,13 @@ private fun CreateGameMap(
 fun CreateGameDialog(
     initialName: String,
     initialPassword: String,
+    initialDuration: Long,
     onDismiss: () -> Unit,
-    onSave: (String, String) -> Unit
+    onSave: (String, String, Long) -> Unit
 ) {
     var name by remember { mutableStateOf(initialName) }
     var password by remember { mutableStateOf(initialPassword) }
+    var durationText by remember { mutableStateOf(initialDuration.toString()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -256,7 +273,7 @@ fun CreateGameDialog(
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Geben Sie Ihrer Mission einen Namen und ein optionales Passwort.",
+                    text = "Geben Sie Ihrer Mission einen Namen, ein Passwort und die Dauer.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
@@ -293,20 +310,35 @@ fun CreateGameDialog(
                         unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                     )
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = durationText,
+                    onValueChange = { if (it.all { char -> char.isDigit() }) durationText = it },
+                    label = { Text("Spieldauer (Minuten)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    )
+                )
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onSave(name, password) },
-                enabled = name.isNotBlank()
+                onClick = { onSave(name, password, durationText.toLongOrNull() ?: 60L) },
+                enabled = name.isNotBlank() && durationText.isNotBlank()
             ) {
                 Text(
                     "SPEICHERN",
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        color = if (name.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
-                            alpha = 0.3f
-                        )
+                        color = if (name.isNotBlank() && durationText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                     )
                 )
             }

@@ -72,7 +72,10 @@ class GameViewModel @Inject constructor(
     private fun startGameTimer() {
         if (timerJob != null) return
         timerJob = viewModelScope.launch {
-            var seconds = gameState.value.remainingTime ?: calculateRemainingTime(gameState.value.game.startTimeStamp)
+            var seconds = gameState.value.remainingTime ?: calculateRemainingTime(
+                gameState.value.game.startTimeStamp,
+                gameState.value.game.gameDurationInMinutes
+            )
             while (seconds >= 0 && isActive) {
                 gameState.update { it.copy(remainingTime = seconds) }
                 savedStateHandle[KEY_REMAINING_TIME] = seconds
@@ -85,11 +88,11 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    private fun calculateRemainingTime(startTimeStamp: Long?): Long {
-        if (startTimeStamp == null) return GAME_DURATION_SECONDS
+    private fun calculateRemainingTime(startTimeStamp: Long?, durationInMinutes: Long): Long {
+        if (startTimeStamp == null) return durationInMinutes * 60
         val elapsedMillis = System.currentTimeMillis() - startTimeStamp
         val elapsedSeconds = elapsedMillis / 1000
-        return (GAME_DURATION_SECONDS - elapsedSeconds).coerceAtLeast(0)
+        return (durationInMinutes * 60 - elapsedSeconds).coerceAtLeast(0)
     }
 
     private fun createGameBack() {
@@ -105,7 +108,11 @@ class GameViewModel @Inject constructor(
     private fun updateCreateGameDetails(event: GameEvent.UpdateCreateGameDetails) {
         val createGameState = gameState.value.step
         if (createGameState !is CreateGameStep) return
-        val newState = createGameState.copy(missionName = event.name, password = event.pass)
+        val newState = createGameState.copy(
+            missionName = event.name,
+            password = event.pass,
+            gameDurationInMinutes = event.duration
+        )
         gameState.update { it.copy(step = newState) }
     }
 
@@ -262,7 +269,7 @@ class GameViewModel @Inject constructor(
             if (response.isSuccessful) {
                 val gameDto = response.body() ?: throw IllegalStateException("Game must not be null")
                 val game = gameDto.toGameSession()
-                val remainingTime = calculateRemainingTime(gameDto.startTimeStamp)
+                val remainingTime = calculateRemainingTime(gameDto.startTimeStamp, game.gameDurationInMinutes)
                 persistSession(game.id!!, game.role, gameDto.startTimeStamp)
                 gameState.update { it.copy(step = GameStep.Game, game = game, remainingTime = remainingTime) }
             } else {
@@ -285,10 +292,11 @@ class GameViewModel @Inject constructor(
                     password = createGameState.password.ifBlank { null },
                     bounds = createGameState.bounds.map { LatLngDto(it.latitude, it.longitude) },
                     towers = createGameState.towers.map { LatLngDto(it.latitude, it.longitude) },
-                    startTimeStamp = startTimeStamp
+                    startTimeStamp = startTimeStamp,
+                    gameDurationInMinutes = createGameState.gameDurationInMinutes
                 )).body() ?: throw IllegalStateException("game must not be null")
             val game = gameDto.toGameSession()
-            val remainingTime = calculateRemainingTime(startTimeStamp)
+            val remainingTime = calculateRemainingTime(startTimeStamp, game.gameDurationInMinutes)
             persistSession(game.id!!, game.role, startTimeStamp)
             gameState.update { it.copy(step = GameStep.Game, game = game, remainingTime = remainingTime) }
         }
@@ -344,7 +352,7 @@ class GameViewModel @Inject constructor(
                 val game = gameDto?.toGameSession()?.copy(role = team)
                 if (game != null) {
                     val actualStartTime = gameDto.startTimeStamp ?: startTimeStamp
-                    val remainingTime = calculateRemainingTime(actualStartTime)
+                    val remainingTime = calculateRemainingTime(actualStartTime, game.gameDurationInMinutes)
                     gameState.update { it.copy(step = GameStep.Game, game = game, remainingTime = remainingTime) }
                     Log.d("qwer", "Session restored for gameId=$gameId team=$team remainingTime=$remainingTime")
                 } else {
@@ -364,6 +372,5 @@ class GameViewModel @Inject constructor(
         private const val KEY_TEAM = "team"
         private const val KEY_START_TIMESTAMP = "start_timestamp"
         private const val KEY_REMAINING_TIME = "remaining_time"
-        private const val GAME_DURATION_SECONDS = 3600L
     }
 }
