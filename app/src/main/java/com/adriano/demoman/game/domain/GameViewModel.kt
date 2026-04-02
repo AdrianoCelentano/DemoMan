@@ -244,16 +244,19 @@ class GameViewModel @Inject constructor(
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun observePlayerLocation() {
         if (gameState.value.game.role == Team.DETECTIVE) return
-        flow {
-            gameState.value.game.towers.forEachIndexed { index, tower ->
-                delay(5.seconds)
-                Log.d("qwer", "indx: $index, position: ${tower.position}")
-                emit(onEvent(GameEvent.PlayerPositionUpdate(tower.position)))
-            }
-        }.launchIn(viewModelScope)
-//        locationProvider.locationsFlow()
-//            .onEach { onEvent(GameEvent.PlayerPositionUpdate(it)) }
-//            .launchIn(viewModelScope)
+        if (DEBUG_ENABLED) {
+            flow {
+                gameState.value.game.towers.forEachIndexed { index, tower ->
+                    delay(15.seconds)
+                    Log.d("qwer", "indx: $index, position: ${tower.position}")
+                    emit(onEvent(GameEvent.PlayerPositionUpdate(tower.position)))
+                }
+            }.launchIn(viewModelScope)
+        } else {
+            locationProvider.locationsFlow()
+                .onEach { onEvent(GameEvent.PlayerPositionUpdate(it)) }
+                .launchIn(viewModelScope)
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -289,7 +292,7 @@ class GameViewModel @Inject constructor(
         gameUpdatesJob = viewModelScope.launch {
             while (isActive) {
                 runCatching { fetchGameState() }
-                delay(1.minutes)
+                delay(10.seconds)
             }
         }
     }
@@ -299,8 +302,9 @@ class GameViewModel @Inject constructor(
             gameApiService.findGameById(gameState.value.game.id!!).body()!!
         val game = gameDto.toGameSession().copy(role = Team.DETECTIVE)
         if (gameState.value.game.towers.count { it.isActive } != game.towers.count { it.isActive }) {
-            gameState.update { it.copy(game = game) }
+            triggerVibration()
         }
+        gameState.update { it.copy(game = game) }
     }
 
     fun LatLng.isWithinRange(other: LatLng, meters: Float = 50f): Boolean {
