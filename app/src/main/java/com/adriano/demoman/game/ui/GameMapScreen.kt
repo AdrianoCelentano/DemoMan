@@ -1,17 +1,8 @@
 package com.adriano.demoman.game.ui
 
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -30,17 +21,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
 import com.adriano.demoman.R
 import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.game.domain.GameSession
-import com.adriano.demoman.game.domain.Team
 import com.adriano.demoman.game.domain.Tower
 import com.google.android.gms.maps.CameraUpdateFactory.newLatLngBounds
-import com.google.android.gms.maps.model.BitmapDescriptor
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.GoogleMap
@@ -119,8 +105,7 @@ fun GameMapScreen(
                 zoomControlsEnabled = false
             )
         ) {
-            if (game.role == Team.MISTER_X) MisterXView(game.towers, scale)
-            if (game.role == Team.DETECTIVE) DetectiveView(game.towers, scale)
+            TowerMarker(game.towers, scale)
             Polygon(
                 points = bounds,
                 holes = listOf(game.playground),
@@ -133,23 +118,7 @@ fun GameMapScreen(
 }
 
 @Composable
-fun DetectiveView(towers: List<Tower>, scale: Float) {
-    val context = LocalContext.current
-    val smallIcon = remember {
-        getResizedBitmap(context, R.drawable.tower_down, 48, 48)
-    }
-    towers.filter { it.isActive }.forEach { tower ->
-        Marker(
-            alpha = scale,
-            icon = smallIcon,
-            state = rememberUpdatedMarkerState(position = tower.position),
-        )
-    }
-
-}
-
-@Composable
-fun MisterXView(towers: List<Tower>, scale: Float) {
+fun TowerMarker(towers: List<Tower>, scale: Float) {
     val context = LocalContext.current
     val towerIcon = remember {
         getResizedBitmap(context, R.drawable.tower, 104, 104)

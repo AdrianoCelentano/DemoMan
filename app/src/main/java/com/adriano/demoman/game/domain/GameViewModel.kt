@@ -59,7 +59,15 @@ class GameViewModel @Inject constructor(
             is GameEvent.ActivateTower -> activateTower(event)
             GameEvent.GoToCreateGame -> gameState.update { it.copy(step = CreateGameStep()) }
             is GameEvent.CreateGameMapClick -> createGameMapClick(event.position)
+            is GameEvent.UpdateCreateGameDetails -> updateCreateGameDetails(event)
         }
+    }
+
+    private fun updateCreateGameDetails(event: GameEvent.UpdateCreateGameDetails) {
+        val createGameState = gameState.value.step
+        if (createGameState !is CreateGameStep) return
+        val newState = createGameState.copy(missionName = event.name, password = event.pass)
+        gameState.update { it.copy(step = newState) }
     }
 
     private fun createGameMapClick(position: LatLng) {
@@ -201,11 +209,16 @@ class GameViewModel @Inject constructor(
     private fun joinGame(event: GameEvent.JoinGame) {
         viewModelScope.launch {
             gameState.update { it.copy(step = GameStep.Loading) }
-            val game = gameApiService.joinGame(JoinGameRequestDto(gameId = event.gameId)).body()
-                ?.toGameSession()
-                ?: throw IllegalStateException("Game must not be null")
-            persistSession(game.id!!, game.role)
-            gameState.update { it.copy(step = GameStep.Game, game = game) }
+            val response = gameApiService.joinGame(JoinGameRequestDto(gameId = event.gameId, password = event.password))
+            if (response.isSuccessful) {
+                val game = response.body()?.toGameSession() ?: throw IllegalStateException("Game must not be null")
+                persistSession(game.id!!, game.role)
+                gameState.update { it.copy(step = GameStep.Game, game = game) }
+            } else {
+                // Handle error (e.g., wrong password)
+                // For now, just go back to the list
+                goToGameList()
+            }
         }
     }
 
@@ -216,6 +229,8 @@ class GameViewModel @Inject constructor(
             gameState.update { it.copy(step = GameStep.Loading) }
             val game = gameApiService.createGame(
                 CreateGameRequestDto(
+                name = createGameState.missionName,
+                password = createGameState.password.ifBlank { null },
                 bounds = createGameState.bounds.map { LatLngDto(it.latitude, it.longitude) },
                 towers = createGameState.towers.map { LatLngDto(it.latitude, it.longitude) }
             )).body()?.toGameSession()

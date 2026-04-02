@@ -11,20 +11,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.KeyboardDoubleArrowRight
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.modifier.modifierLocalProvider
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -35,7 +34,6 @@ import com.adriano.demoman.game.domain.Player
 import com.adriano.demoman.game.domain.Team
 import com.adriano.demoman.game.domain.Tower
 import com.adriano.demoman.ui.theme.DemoManTheme
-import com.adriano.demoman.ui.theme.SurfaceSlate
 import com.google.android.gms.maps.model.LatLng
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,6 +44,18 @@ fun GameListScreen(
     innerPadding: PaddingValues
 ) {
     BackHandler { onEvent(GameEvent.GoToSetup) }
+
+    var selectedGameId by remember { mutableStateOf<String?>(null) }
+
+    if (selectedGameId != null) {
+        JoinGamePasswordDialog(
+            onConfirm = { password ->
+                selectedGameId?.let { onEvent(GameEvent.JoinGame(it, password)) }
+                selectedGameId = null
+            },
+            onDismiss = { selectedGameId = null }
+        )
+    }
 
     Scaffold(
         modifier = Modifier
@@ -96,13 +106,49 @@ fun GameListScreen(
                 ) {
                     items(games) { game ->
                         MissionCard(game = game, onClick = {
-                            game.id?.let { onEvent(GameEvent.JoinGame(it)) }
+                            selectedGameId = game.id
                         })
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+fun JoinGamePasswordDialog(
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var password by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Mission beitreten") },
+        text = {
+            Column {
+                Text("Bitte gib das Passwort für diese Mission ein.")
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Passwort") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(password) }) {
+                Text("Beitreten")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
+        }
+    )
 }
 
 @Composable
@@ -115,7 +161,7 @@ fun MissionCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .border(
-                4.dp,
+                1.dp,
                 Brush.horizontalGradient(
                     listOf(
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
@@ -125,13 +171,16 @@ fun MissionCard(
                 RoundedCornerShape(20.dp)
             )
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(20.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
             modifier = Modifier
                 .padding(20.dp)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+            ,
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Icon / Indicator
@@ -162,7 +211,7 @@ fun MissionCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 )
-
+                
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     MissionStatChip(
                         icon = Icons.Default.Person,
@@ -177,10 +226,9 @@ fun MissionCard(
             }
 
             Icon(
-                modifier = Modifier.padding(start = 4.dp),
-                imageVector = Icons.Default.KeyboardDoubleArrowRight,
+                imageVector = Icons.Default.KeyboardArrowRight,
                 contentDescription = "Join",
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
             )
         }
     }
@@ -234,9 +282,9 @@ fun EmptyMissionState(onEvent: (GameEvent) -> Unit) {
                 textAlign = TextAlign.Center
             )
         }
-
+        
         Spacer(modifier = Modifier.height(32.dp))
-
+        
         Text(
             text = "KEINE MISSIONEN AKTIV",
             style = MaterialTheme.typography.headlineSmall.copy(
@@ -245,7 +293,7 @@ fun EmptyMissionState(onEvent: (GameEvent) -> Unit) {
             ),
             textAlign = TextAlign.Center
         )
-
+        
         Text(
             text = "SCANNING SECURE CHANNELS...",
             style = MaterialTheme.typography.bodyMedium.copy(
@@ -256,16 +304,14 @@ fun EmptyMissionState(onEvent: (GameEvent) -> Unit) {
         )
 
         Spacer(modifier = Modifier.height(48.dp))
-
+        
         Button(
             onClick = { onEvent(GameEvent.GoToSetup) },
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary
             ),
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
+            modifier = Modifier.fillMaxWidth().height(56.dp)
         ) {
             Text(
                 text = "ZURÜCK ZUR LOBBY",
