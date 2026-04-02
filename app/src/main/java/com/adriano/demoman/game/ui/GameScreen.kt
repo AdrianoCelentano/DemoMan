@@ -1,13 +1,10 @@
 package com.adriano.demoman.game.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -25,9 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.adriano.demoman.R
+import com.adriano.demoman.game.domain.CreateGame
 import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.game.domain.GameList
-import com.adriano.demoman.game.domain.GameSession
 import com.adriano.demoman.game.domain.GameStep
 import com.adriano.demoman.game.domain.GameViewModel
 
@@ -40,6 +37,7 @@ fun GameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewM
         GameStep.Game -> GameMapScreen(innerPadding, onEvent, state.game)
         GameStep.Loading -> LoadingScreen()
         GameStep.Setup -> SetupScreen(onEvent, innerPadding)
+        is CreateGame -> CreateGameScreen(innerPadding)
     }
 }
 
@@ -113,7 +111,7 @@ fun SetupScreen(onEvent: (GameEvent) -> Unit, innerPadding: PaddingValues) {
             // Buttons
             MainActionButton(
                 text = "NEUES SPIEL",
-                onClick = { onEvent(GameEvent.CreateGame) },
+                onClick = { onEvent(GameEvent.GoToCreateGame) },
                 isPrimary = true
             )
 

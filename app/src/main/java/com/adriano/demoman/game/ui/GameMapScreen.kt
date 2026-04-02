@@ -5,10 +5,14 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,9 +26,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.adriano.demoman.R
@@ -32,6 +36,7 @@ import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.game.domain.GameSession
 import com.adriano.demoman.game.domain.Team
 import com.adriano.demoman.game.domain.Tower
+import com.google.android.gms.maps.CameraUpdateFactory.newLatLngBounds
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -45,6 +50,7 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polygon
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
+import kotlinx.coroutines.launch
 
 @Composable
 fun GameMapScreen(
@@ -52,9 +58,21 @@ fun GameMapScreen(
     onEvent: (GameEvent) -> Unit,
     game: GameSession
 ) {
+    val mapLoaded = remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (mapLoaded.value) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 2000,
+            delayMillis = 500,
+            easing = FastOutSlowInEasing
+        ),
+        label = "MarkerScale"
+    )
 
     val hasLocationPermission = hasLocationPermission()
-    if (hasLocationPermission) onEvent(GameEvent.ObserveLocation)
+    LaunchedEffect(hasLocationPermission) {
+        if (hasLocationPermission) onEvent(GameEvent.ObserveLocation)
+    }
     ExitGameDialog(onEvent)
 
     Box(
@@ -62,10 +80,13 @@ fun GameMapScreen(
     ) {
         val context = LocalContext.current
         val centerPos = remember { findCenter(game.playground) }
+        val bounds = remember { createOuterBounds(game.playground) }
 
         val cameraPositionState = rememberCameraPositionState {
-            position = CameraPosition(centerPos, 16.5f, 0f, 10f)
+            position = CameraPosition(centerPos, 13f, 0f, 10f)
         }
+
+        val scope = rememberCoroutineScope()
 
         val mapStyleOptions = remember {
             MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style)
@@ -78,23 +99,33 @@ fun GameMapScreen(
                 isMyLocationEnabled = hasLocationPermission,
                 mapStyleOptions = mapStyleOptions
             ),
+            onMapLoaded = {
+                val boundsBuilder = LatLngBounds.Builder()
+                game.playground.forEach { boundsBuilder.include(it) }
+                scope.launch {
+                    cameraPositionState.animate(
+                        update = newLatLngBounds(boundsBuilder.build(), 20),
+                        durationMs = 1000)
+                }
+                mapLoaded.value = true
+            },
             uiSettings = MapUiSettings(
                 scrollGesturesEnabled = false,
                 zoomGesturesEnabled = false,
                 tiltGesturesEnabled = false,
                 rotationGesturesEnabled = false,
-                myLocationButtonEnabled = false
+                myLocationButtonEnabled = false,
+                compassEnabled = false,
+                zoomControlsEnabled = false
             )
         ) {
-            if (game.role == Team.MISTER_X) MisterXView(game.towers)
-            if (game.role == Team.DETECTIVE) DetectiveView(game.towers)
-
-            val bounds = remember { createOuterBounds(game.playground) }
+            if (game.role == Team.MISTER_X) MisterXView(game.towers, scale)
+            if (game.role == Team.DETECTIVE) DetectiveView(game.towers, scale)
             Polygon(
                 points = bounds,
                 holes = listOf(game.playground),
-                fillColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                strokeColor = MaterialTheme.colorScheme.primary,
+                fillColor = MaterialTheme.colorScheme.background.copy(alpha = scale * 0.75f),
+                strokeColor = MaterialTheme.colorScheme.background.copy(alpha = scale * 1f),
                 strokeWidth = 4f
             )
         }
@@ -102,13 +133,14 @@ fun GameMapScreen(
 }
 
 @Composable
-fun DetectiveView(towers: List<Tower>) {
+fun DetectiveView(towers: List<Tower>, scale: Float) {
     val context = LocalContext.current
     val smallIcon = remember {
         getResizedBitmap(context, R.drawable.tower_down, 48, 48)
     }
     towers.filter { it.isActive }.forEach { tower ->
         Marker(
+            alpha = scale,
             icon = smallIcon,
             state = rememberUpdatedMarkerState(position = tower.position),
         )
@@ -116,19 +148,8 @@ fun DetectiveView(towers: List<Tower>) {
 
 }
 
-fun getResizedBitmap(context: Context, resId: Int, widthDp: Int, heightDp: Int): BitmapDescriptor {
-    val resources = context.resources
-    val widthPx = (widthDp * resources.displayMetrics.density).toInt()
-    val heightPx = (heightDp * resources.displayMetrics.density).toInt()
-
-    val bitmap = BitmapFactory.decodeResource(resources, resId)
-    val scaledBitmap = Bitmap.createScaledBitmap(bitmap, widthPx, heightPx, false)
-
-    return BitmapDescriptorFactory.fromBitmap(scaledBitmap)
-}
-
 @Composable
-fun MisterXView(towers: List<Tower>) {
+fun MisterXView(towers: List<Tower>, scale: Float) {
     val context = LocalContext.current
     val towerIcon = remember {
         getResizedBitmap(context, R.drawable.tower, 104, 104)
@@ -138,37 +159,11 @@ fun MisterXView(towers: List<Tower>) {
     }
     towers.forEach { tower ->
         Marker(
+            alpha = scale,
             icon = if (tower.isActive) towerDownIcon else towerIcon,
             state = rememberUpdatedMarkerState(position = tower.position),
         )
     }
-}
-
-// TODO move this to the backend
-fun createOuterBounds(playground: List<LatLng>): List<LatLng> {
-    if (playground.isEmpty()) return emptyList()
-
-    val minLat = playground.minOf { it.latitude }
-    val maxLat = playground.maxOf { it.latitude }
-    val minLng = playground.minOf { it.longitude }
-    val maxLng = playground.maxOf { it.longitude }
-
-    val offset = 0.0045
-
-    return listOf(
-        LatLng(maxLat + offset, minLng - offset), // Top Left
-        LatLng(maxLat + offset, maxLng + offset), // Top Right
-        LatLng(minLat - offset, maxLng + offset), // Bottom Right
-        LatLng(minLat - offset, minLng - offset)  // Bottom Left
-    )
-}
-
-fun findCenter(points: List<LatLng>): LatLng {
-    val builder = LatLngBounds.Builder()
-    for (point in points) {
-        builder.include(point)
-    }
-    return builder.build().center
 }
 
 @Composable
@@ -197,41 +192,4 @@ private fun ExitGameDialog(onEvent: (GameEvent) -> Unit) {
     }
 
     BackHandler() { showEndGameDialog = true }
-}
-
-@Composable
-fun hasLocationPermission(): Boolean {
-    val context = LocalContext.current
-    var hasLocationPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED ||
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    ) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-    }
-
-    LaunchedEffect(Unit) {
-        if (!hasLocationPermission) {
-            launcher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
-        }
-    }
-
-    return hasLocationPermission
 }

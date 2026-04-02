@@ -9,7 +9,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.adriano.demoman.game.data.ActivateTowerRequestDto
-import com.adriano.demoman.game.data.CreateGameRequestDto
 import com.adriano.demoman.game.data.GameApiService
 import com.adriano.demoman.game.data.GameSessionRepository
 import com.adriano.demoman.game.data.JoinGameRequestDto
@@ -56,7 +55,66 @@ class GameViewModel @Inject constructor(
             GameEvent.GoToSetup -> gameState.update { it.copy(step = GameStep.Setup) }
             GameEvent.ObserveLocation -> observeLocation()
             is GameEvent.ActivateTower -> activateTower(event)
+            GameEvent.GoToCreateGame -> gameState.update { it.copy(step = CreateGame()) }
+            is GameEvent.CreateGameMapClick -> createGameMapClick(event.position)
         }
+    }
+
+    private fun createGameMapClick(position: LatLng) {
+        val createGameState = gameState.value.step
+        if (createGameState !is CreateGame) return
+        when(createGameState.step) {
+            CreateGameStep.Boundary -> {
+                if (createGameState.bounds.contains(position)) removeBoundary(position)
+                else addBoundary(position)
+            }
+            CreateGameStep.Tower -> {
+                if (createGameState.towers.contains(position)) removeTower(position)
+                else addTower(position)
+            }
+            CreateGameStep.Complete -> {
+                //Create Game and navigate to game Map
+            }
+        }
+    }
+
+    private fun addTower(position: LatLng) {
+        val createGameState = gameState.value.step
+        if (createGameState !is CreateGame) return
+        val newTowers = createGameState.towers + position
+        val newState = createGameState.copy(towers = newTowers)
+        gameState.update { it.copy(step = newState) }
+    }
+
+    private fun removeTower(position: LatLng) {
+        val createGameState = gameState.value.step
+        if (createGameState !is CreateGame) return
+        val newTowers = createGameState.towers - position
+        val newState = createGameState.copy(towers = newTowers)
+        gameState.update { it.copy(step = newState) }
+    }
+
+
+    private fun addBoundary(position: LatLng) {
+        val createGameState = gameState.value.step
+        if (createGameState !is CreateGame) return
+        val newBounds = createGameState.bounds + position
+        val newState = createGameState.copy(bounds = newBounds)
+        gameState.update { it.copy(step = newState) }
+    }
+
+    private fun removeBoundary(position: LatLng) {
+        val createGameState = gameState.value.step
+        if (createGameState !is CreateGame) return
+        val newBounds = createGameState.bounds - position
+        val newState = createGameState.copy(bounds = newBounds)
+        gameState.update { it.copy(step = newState) }
+    }
+
+
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
+    suspend fun lastLocation(): Location {
+        return locationProvider.lastLocation()
     }
 
     private fun activateTower(event: GameEvent.ActivateTower) {
@@ -148,13 +206,13 @@ class GameViewModel @Inject constructor(
     }
 
     private fun createGame() {
-        viewModelScope.launch {
-            gameState.update { it.copy(step = GameStep.Loading) }
-            val game = gameApiService.createGame(CreateGameRequestDto()).body()?.toGameSession()
-                ?: throw IllegalStateException("game must not be null")
-            persistSession(game.id!!, game.role)
-            gameState.update { it.copy(step = GameStep.Game, game = game) }
-        }
+//        viewModelScope.launch {
+//            gameState.update { it.copy(step = GameStep.Loading) }
+//            val game = gameApiService.createGame(CreateGameRequestDto()).body()?.toGameSession()
+//                ?: throw IllegalStateException("game must not be null")
+//            persistSession(game.id!!, game.role)
+//            gameState.update { it.copy(step = GameStep.Game, game = game) }
+//        }
     }
 
     private suspend fun persistSession(gameId: String, team: Team) {

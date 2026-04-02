@@ -79,9 +79,6 @@
     ]
   },
   {
-    "featureType": "poi.business"
-  },
-  {
     "featureType": "poi.park",
     "stylers": [
       {
@@ -103,7 +100,6 @@
       }
     ]
   },
-  {},
   {
     "featureType": "poi.medical",
     "elementType": "geometry.fill",
@@ -119,20 +115,6 @@
       }
     ]
   },
-  {},
-  {},
-  {},
-  {},
-  {},
-  {},
-  {},
-  {},
-  {},
-  {},
-  {},
-  {
-    "elementType": "labels"
-  },
   {
     "featureType": "poi.sports_complex",
     "stylers": [
@@ -144,7 +126,6 @@
       }
     ]
   },
-  {},
   {
     "featureType": "poi.government",
     "stylers": [
@@ -195,15 +176,20 @@
       }
     ]
   },
-  {},
-  {},
-  {},
   {
     "featureType": "poi",
-    "stylers": [{ "visibility": "off" }]
+    "stylers": [
+      {
+        "visibility": "off"
+      }
+    ]
   },
   {
     "featureType": "transit",
-    "stylers": [{ "visibility": "off" }]
+    "stylers": [
+      {
+        "visibility": "off"
+      }
+    ]
   }
 ]

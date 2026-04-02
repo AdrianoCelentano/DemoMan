@@ -41,6 +41,21 @@ sealed class GameStep {
     object Game : GameStep()
 }
 
+data class CreateGame(
+    val bounds: List<LatLng> = emptyList(),
+    val towers: List<LatLng> = emptyList()
+) : GameStep() {
+    val step: CreateGameStep get() {
+        return when {
+            bounds.size < 4 -> CreateGameStep.Boundary
+            towers.size < 3 -> CreateGameStep.Tower
+            else -> CreateGameStep.Complete
+        }
+    }
+}
+
+enum class CreateGameStep {Boundary, Tower, Complete}
+
 data class GameList(
     val games: List<GameSession>
 ) : GameStep()
@@ -49,7 +64,9 @@ sealed class GameEvent {
     object GoToGameList : GameEvent()
     object ObserveLocation : GameEvent()
     object GoToSetup : GameEvent()
+    object GoToCreateGame : GameEvent()
     object CreateGame : GameEvent()
+    data class CreateGameMapClick(val position: LatLng) : GameEvent()
     data class ActivateTower(val towerIndex: Int): GameEvent()
     data class JoinGame(val gameId: String) : GameEvent()
     object EndGame : GameEvent() // after all towers are activated or MisterX got caught

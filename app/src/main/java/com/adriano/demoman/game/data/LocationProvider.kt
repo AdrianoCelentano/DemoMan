@@ -5,6 +5,7 @@ import android.Manifest.permission
 import android.Manifest.permission.ACCESS_COARSE_LOCATION
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.content.Context
+import android.location.Location
 import com.google.android.gms.location.LocationRequest
 import android.os.Looper
 import androidx.annotation.RequiresPermission
@@ -14,13 +15,17 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.tasks.Task
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration.Companion.seconds
 
 class LocationProvider @Inject constructor(@ApplicationContext context: Context) {
@@ -51,6 +56,15 @@ class LocationProvider @Inject constructor(@ApplicationContext context: Context)
         )
 
         awaitClose { fusedLocationClient.removeLocationUpdates(locationCallback) }
+    }
+
+    @RequiresPermission(allOf = [ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION])
+    suspend fun lastLocation(): Location = suspendCancellableCoroutine { continuation ->
+        try {
+            fusedLocationClient.lastLocation.addOnSuccessListener { continuation.resume(it) }
+        } catch (e: Exception) {
+            continuation.resumeWithException(e)
+        }
     }
 
 }
