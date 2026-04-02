@@ -56,7 +56,7 @@ fun GameMapScreen(
     )
 
     val hasLocationPermission = hasLocationPermission()
-    LaunchedEffect(hasLocationPermission) {
+    LaunchedEffect(Unit) {
         if (hasLocationPermission) onEvent(GameEvent.ObserveLocation)
     }
     ExitGameDialog(onEvent)

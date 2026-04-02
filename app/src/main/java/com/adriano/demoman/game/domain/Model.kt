@@ -10,13 +10,11 @@ data class GameViewState(
 data class GameSession(
     val id: String? = null,
     val playground: List<LatLng> = emptyList(),
+    val password: String? = null,
     val players: List<Player> = emptyList(),
     val towers: List<Tower> = emptyList(),
     val role: Team = Team.DETECTIVE
-) {
-    val detetctive get() = players.filter { it.team == Team.DETECTIVE }
-    val misterX get() = players.filter { it.team == Team.MISTER_X }
-}
+)
 
 enum class Team {
     DETECTIVE,
@@ -63,8 +61,10 @@ data class GameList(
 
 sealed class GameEvent {
     object GoToGameList : GameEvent()
+    object CreateGameBack : GameEvent()
     object ObserveLocation : GameEvent()
     object GoToSetup : GameEvent()
+    data class PlayerPositionUpdate(val position: LatLng) : GameEvent()
     object GoToCreateGame : GameEvent()
     object CreateGame : GameEvent()
     data class CreateGameMapClick(val position: LatLng) : GameEvent()

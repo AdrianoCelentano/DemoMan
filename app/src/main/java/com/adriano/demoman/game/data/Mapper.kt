@@ -11,6 +11,7 @@ import com.adriano.demoman.game.domain.Tower
 fun GameDto.toGameSession(): GameSession {
     return GameSession(
         id = id,
+        password = password,
         players = players.map { it.toPlayer() },
         towers = towers.map { it.toTowers() },
         role = (if (players.size == 1) DETECTIVE else MISTER_X),

@@ -48,13 +48,18 @@ fun GameListScreen(
     var selectedGameId by remember { mutableStateOf<String?>(null) }
 
     if (selectedGameId != null) {
-        JoinGamePasswordDialog(
-            onConfirm = { password ->
-                selectedGameId?.let { onEvent(GameEvent.JoinGame(it, password)) }
-                selectedGameId = null
-            },
-            onDismiss = { selectedGameId = null }
-        )
+        val selectedGame = games.find { it.id == selectedGameId }
+        if (selectedGame?.password?.isNotBlank() ?: false) {
+            JoinGamePasswordDialog(
+                onConfirm = { password ->
+                    selectedGameId?.let { onEvent(GameEvent.JoinGame(it, password)) }
+                    selectedGameId = null
+                },
+                onDismiss = { selectedGameId = null }
+            )
+        } else {
+            selectedGameId?.let { onEvent(GameEvent.JoinGame(it, null)) }
+        }
     }
 
     Scaffold(
@@ -179,8 +184,7 @@ fun MissionCard(
         Row(
             modifier = Modifier
                 .padding(20.dp)
-                .fillMaxWidth()
-            ,
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Icon / Indicator
@@ -211,7 +215,7 @@ fun MissionCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 )
-                
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     MissionStatChip(
                         icon = Icons.Default.Person,
@@ -282,9 +286,9 @@ fun EmptyMissionState(onEvent: (GameEvent) -> Unit) {
                 textAlign = TextAlign.Center
             )
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         Text(
             text = "KEINE MISSIONEN AKTIV",
             style = MaterialTheme.typography.headlineSmall.copy(
@@ -293,7 +297,7 @@ fun EmptyMissionState(onEvent: (GameEvent) -> Unit) {
             ),
             textAlign = TextAlign.Center
         )
-        
+
         Text(
             text = "SCANNING SECURE CHANNELS...",
             style = MaterialTheme.typography.bodyMedium.copy(
@@ -304,14 +308,16 @@ fun EmptyMissionState(onEvent: (GameEvent) -> Unit) {
         )
 
         Spacer(modifier = Modifier.height(48.dp))
-        
+
         Button(
             onClick = { onEvent(GameEvent.GoToSetup) },
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary
             ),
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth().height(56.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
         ) {
             Text(
                 text = "ZURÜCK ZUR LOBBY",

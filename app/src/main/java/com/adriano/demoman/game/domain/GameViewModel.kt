@@ -18,6 +18,7 @@ import com.adriano.demoman.game.data.LocationProvider
 import com.adriano.demoman.game.data.toGameSession
 import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn
@@ -36,6 +37,7 @@ class GameViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
+    private var gameUpdatesJob: Job? = null
     val gameState = MutableStateFlow(GameViewState())
 
     init {
@@ -60,6 +62,18 @@ class GameViewModel @Inject constructor(
             GameEvent.GoToCreateGame -> gameState.update { it.copy(step = CreateGameStep()) }
             is GameEvent.CreateGameMapClick -> createGameMapClick(event.position)
             is GameEvent.UpdateCreateGameDetails -> updateCreateGameDetails(event)
+            GameEvent.CreateGameBack -> createGameBack()
+            is GameEvent.PlayerPositionUpdate -> playerPositionUpdate(event)
+        }
+    }
+
+    private fun createGameBack() {
+        val createGameState = gameState.value.step
+        if (createGameState !is CreateGameStep) return
+        when  {
+            createGameState.bounds.isEmpty() -> gameState.update { it.copy(step = GameStep.Setup) }
+            createGameState.towers.isEmpty() -> removeBoundary(createGameState.bounds.last())
+            else -> removeTower(createGameState.towers.last())
         }
     }
 
@@ -141,37 +155,38 @@ class GameViewModel @Inject constructor(
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun observeLocation() {
         when (gameState.value.game.role) {
-            Team.MISTER_X -> observeTowerUpdates()
+            Team.MISTER_X -> observePlayerLocation()
             Team.DETECTIVE -> observeGameUpdates()
         }
     }
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
-    private fun observeTowerUpdates() {
+    private fun observePlayerLocation() {
         locationProvider.locationsFlow()
-            .onEach { isTowerCloseBy(it) }
+            .onEach { onEvent(GameEvent.PlayerPositionUpdate(it)) }
             .launchIn(viewModelScope)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun playerPositionUpdate(event: GameEvent.PlayerPositionUpdate) {
+        val playerPosition = event.position
+        val game = gameState.value.game
+        game.towers.filter { it.isActive.not() }.forEachIndexed { index, tower ->
+            if (tower.position.isWithinRange(playerPosition)) {
+                onEvent(GameEvent.ActivateTower(index))
+            }
+        }
     }
 
     private fun observeGameUpdates() {
         if (gameState.value.game.role == Team.DETECTIVE) {
-            viewModelScope.launch {
+            gameUpdatesJob = viewModelScope.launch {
                 while (isActive) {
                     val game = gameApiService.findGameById(gameState.value.game.id!!).body()!!
                         .toGameSession().copy(role = Team.DETECTIVE)
                     gameState.update { it.copy(game = game) }
                     delay(1.minutes)
                 }
-            }
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun isTowerCloseBy(playerPosition: LatLng) {
-        val game = gameState.value.game
-        game.towers.filter { it.isActive.not() }.forEachIndexed { index, tower ->
-            if (tower.position.isWithinRange(playerPosition)) {
-                onEvent(GameEvent.ActivateTower(index))
             }
         }
     }
@@ -192,6 +207,7 @@ class GameViewModel @Inject constructor(
         viewModelScope.launch {
             gameState.update { it.copy(step = GameStep.Loading) }
             gameApiService.endGame(gameState.value.game.id!!)
+            gameUpdatesJob?.cancel()
             clearPersistedSession()
             gameState.update { it.copy(step = GameStep.Setup) }
         }
@@ -209,9 +225,15 @@ class GameViewModel @Inject constructor(
     private fun joinGame(event: GameEvent.JoinGame) {
         viewModelScope.launch {
             gameState.update { it.copy(step = GameStep.Loading) }
-            val response = gameApiService.joinGame(JoinGameRequestDto(gameId = event.gameId, password = event.password))
+            val response = gameApiService.joinGame(
+                JoinGameRequestDto(
+                    gameId = event.gameId,
+                    password = event.password
+                )
+            )
             if (response.isSuccessful) {
-                val game = response.body()?.toGameSession() ?: throw IllegalStateException("Game must not be null")
+                val game = response.body()?.toGameSession()
+                    ?: throw IllegalStateException("Game must not be null")
                 persistSession(game.id!!, game.role)
                 gameState.update { it.copy(step = GameStep.Game, game = game) }
             } else {
@@ -229,11 +251,11 @@ class GameViewModel @Inject constructor(
             gameState.update { it.copy(step = GameStep.Loading) }
             val game = gameApiService.createGame(
                 CreateGameRequestDto(
-                missionName = createGameState.missionName,
-                password = createGameState.password.ifBlank { null },
-                bounds = createGameState.bounds.map { LatLngDto(it.latitude, it.longitude) },
-                towers = createGameState.towers.map { LatLngDto(it.latitude, it.longitude) }
-            )).body()?.toGameSession()
+                    missionName = createGameState.missionName,
+                    password = createGameState.password.ifBlank { null },
+                    bounds = createGameState.bounds.map { LatLngDto(it.latitude, it.longitude) },
+                    towers = createGameState.towers.map { LatLngDto(it.latitude, it.longitude) }
+                )).body()?.toGameSession()
                 ?: throw IllegalStateException("game must not be null")
             persistSession(game.id!!, game.role)
             gameState.update { it.copy(step = GameStep.Game, game = game) }

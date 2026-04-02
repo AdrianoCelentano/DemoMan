@@ -10,12 +10,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
@@ -60,7 +58,6 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polygon
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
-import kotlinx.coroutines.launch
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -69,7 +66,7 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
     val state = viewModel.gameState.collectAsState().value.step
     if (state !is CreateGameStep) return
 
-    BackHandler { viewModel.onEvent(GameEvent.GoToSetup) }
+    BackHandler { viewModel.onEvent(GameEvent.CreateGameBack) }
 
     val scale by animateFloatAsState(
         targetValue = if (state.step != CreateGameSteps.Boundary) 1f else 0f,
