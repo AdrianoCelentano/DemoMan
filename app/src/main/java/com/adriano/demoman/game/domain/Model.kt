@@ -5,7 +5,8 @@ import com.google.android.gms.maps.model.LatLng
 data class GameViewState(
     val step: GameStep = GameStep.Setup,
     val game: GameSession = GameSession(),
-    val remainingTime: Long? = null
+    val remainingTime: Long? = null,
+    val debugState: DebugViewState? = null
 )
 
 data class GameSession(

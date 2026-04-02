@@ -37,6 +37,8 @@ class GameViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
+    private val DEBUG_ENABLED = false
+
     private var gameUpdatesJob: Job? = null
     private var timerJob: Job? = null
     val gameState = MutableStateFlow(GameViewState())
@@ -212,6 +214,10 @@ class GameViewModel @Inject constructor(
                 onEvent(GameEvent.ActivateTower(index))
             }
         }
+
+        if (DEBUG_ENABLED && game.role == Team.MISTER_X) {
+            gameState.update { it.copy(debugState = calculateDebugState(playerPosition, game.towers)) }
+        }
     }
 
     private fun observeGameUpdates() {
@@ -227,7 +233,7 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    fun LatLng.isWithinRange(other: LatLng, meters: Float = 20f): Boolean {
+    fun LatLng.isWithinRange(other: LatLng, meters: Float = 50f): Boolean {
         val results = FloatArray(1)
         Location.distanceBetween(
             this.latitude,
@@ -248,7 +254,7 @@ class GameViewModel @Inject constructor(
             timerJob?.cancel()
             timerJob = null
             clearPersistedSession()
-            gameState.update { it.copy(step = GameStep.Setup, remainingTime = null) }
+            gameState.update { it.copy(step = GameStep.Setup, remainingTime = null, debugState = null) }
         }
     }
 

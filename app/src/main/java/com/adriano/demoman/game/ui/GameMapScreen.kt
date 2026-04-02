@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.adriano.demoman.R
+import com.adriano.demoman.game.domain.DebugViewState
 import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.game.domain.GameSession
 import com.adriano.demoman.game.domain.Team
@@ -46,7 +47,8 @@ fun GameMapScreen(
     innerPadding: PaddingValues,
     onEvent: (GameEvent) -> Unit,
     game: GameSession,
-    remainingTime: Long?
+    remainingTime: Long?,
+    debugState: DebugViewState? = null
 ) {
     var permissionRequestCount by remember { mutableIntStateOf(0) }
     val hasLocationPermission = hasLocationPermission(permissionRequestCount)
@@ -60,7 +62,7 @@ fun GameMapScreen(
     ExitGameDialog(onEvent)
 
     if (hasLocationPermission) {
-        GameMap(innerPadding, game, hasLocationPermission, remainingTime)
+        GameMap(innerPadding, game, hasLocationPermission, remainingTime, debugState)
     } else {
         LocationPermissionScreen(
             onRequestPermission = { permissionRequestCount++ }
@@ -73,7 +75,8 @@ private fun GameMap(
     innerPadding: PaddingValues,
     game: GameSession,
     hasLocationPermission: Boolean,
-    remainingTime: Long?
+    remainingTime: Long?,
+    debugState: DebugViewState?
 ) {
     val mapLoaded = remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -175,6 +178,10 @@ private fun GameMap(
                     color = MaterialTheme.colorScheme.onSurface
                 )
             )
+        }
+
+        if (debugState != null && game.role == Team.MISTER_X) {
+            DebugOverlay(debugState)
         }
     }
 }

@@ -34,7 +34,7 @@ fun GameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewM
     val onEvent = viewModel::onEvent
     when (state.step) {
         is GameList -> GameListScreen(state.step.games, onEvent, innerPadding)
-        GameStep.Game -> GameMapScreen(innerPadding, onEvent, state.game, state.remainingTime)
+        GameStep.Game -> GameMapScreen(innerPadding, onEvent, state.game, state.remainingTime, state.debugState)
         GameStep.Loading -> LoadingScreen()
         GameStep.Setup -> SetupScreen(onEvent, innerPadding)
         is CreateGameStep -> CreateGameScreen(innerPadding)
