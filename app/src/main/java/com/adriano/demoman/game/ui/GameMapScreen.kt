@@ -4,10 +4,12 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -19,14 +21,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.adriano.demoman.R
 import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.game.domain.GameSession
+import com.adriano.demoman.game.domain.Team
 import com.adriano.demoman.game.domain.Tower
+import com.adriano.demoman.ui.theme.DemoManTheme
 import com.google.android.gms.maps.CameraUpdateFactory.newLatLngBounds
 import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.GoogleMap
@@ -56,7 +65,7 @@ fun GameMapScreen(
     )
 
     val hasLocationPermission = hasLocationPermission()
-    LaunchedEffect(Unit) {
+    LaunchedEffect(hasLocationPermission) {
         if (hasLocationPermission) onEvent(GameEvent.ObserveLocation)
     }
     ExitGameDialog(onEvent)
@@ -114,6 +123,23 @@ fun GameMapScreen(
                 strokeWidth = 4f
             )
         }
+
+        // Role title at the top center
+        Text(
+            text = if (game.role == Team.DETECTIVE) "AGENT" else "DEMOMAN",
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 16.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontWeight = FontWeight.Black,
+                color = if (game.role == Team.DETECTIVE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+            )
+        )
     }
 }
 
@@ -160,5 +186,37 @@ private fun ExitGameDialog(onEvent: (GameEvent) -> Unit) {
         )
     }
 
-    BackHandler() { showEndGameDialog = true }
+    BackHandler { showEndGameDialog = true }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun GameMapScreenAgentPreview() {
+    DemoManTheme {
+        GameMapScreen(
+            innerPadding = PaddingValues(0.dp),
+            onEvent = {},
+            game = GameSession(
+                id = "Test",
+                role = Team.DETECTIVE,
+                playground = listOf(LatLng(49.0, 8.0), LatLng(49.1, 8.1))
+            )
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun GameMapScreenDemomanPreview() {
+    DemoManTheme {
+        GameMapScreen(
+            innerPadding = PaddingValues(0.dp),
+            onEvent = {},
+            game = GameSession(
+                id = "Test",
+                role = Team.MISTER_X,
+                playground = listOf(LatLng(49.0, 8.0), LatLng(49.1, 8.1))
+            )
+        )
+    }
 }
