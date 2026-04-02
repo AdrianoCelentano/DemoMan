@@ -69,18 +69,13 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    @SuppressLint("MissingPermission")
     private fun startGameTimer() {
         if (timerJob != null) return
         timerJob = viewModelScope.launch {
-            var seconds = gameState.value.remainingTime ?: (60 * 60L)
+            var seconds = gameState.value.remainingTime ?: calculateRemainingTime(gameState.value.game.startTimeStamp)
             while (seconds >= 0 && isActive) {
                 gameState.update { it.copy(remainingTime = seconds) }
                 savedStateHandle[KEY_REMAINING_TIME] = seconds
-                // Persist to DataStore every 5 seconds to avoid excessive disk writes
-                if (seconds % 5 == 0L) {
-                    gameSessionRepository.updateRemainingTime(seconds)
-                }
                 delay(1000)
                 seconds--
             }
@@ -88,6 +83,13 @@ class GameViewModel @Inject constructor(
                 onEvent(GameEvent.EndGame)
             }
         }
+    }
+
+    private fun calculateRemainingTime(startTimeStamp: Long?): Long {
+        if (startTimeStamp == null) return GAME_DURATION_SECONDS
+        val elapsedMillis = System.currentTimeMillis() - startTimeStamp
+        val elapsedSeconds = elapsedMillis / 1000
+        return (GAME_DURATION_SECONDS - elapsedSeconds).coerceAtLeast(0)
     }
 
     private fun createGameBack() {
@@ -205,8 +207,8 @@ class GameViewModel @Inject constructor(
         if (gameState.value.game.role == Team.DETECTIVE) {
             gameUpdatesJob = viewModelScope.launch {
                 while (isActive) {
-                    val game = gameApiService.findGameById(gameState.value.game.id!!).body()!!
-                        .toGameSession().copy(role = Team.DETECTIVE)
+                    val gameDto = gameApiService.findGameById(gameState.value.game.id!!).body()!!
+                    val game = gameDto.toGameSession().copy(role = Team.DETECTIVE)
                     gameState.update { it.copy(game = game) }
                     delay(1.minutes)
                 }
@@ -258,10 +260,11 @@ class GameViewModel @Inject constructor(
                 )
             )
             if (response.isSuccessful) {
-                val game = response.body()?.toGameSession()
-                    ?: throw IllegalStateException("Game must not be null")
-                persistSession(game.id!!, game.role, 60 * 60L)
-                gameState.update { it.copy(step = GameStep.Game, game = game, remainingTime = 60 * 60L) }
+                val gameDto = response.body() ?: throw IllegalStateException("Game must not be null")
+                val game = gameDto.toGameSession()
+                val remainingTime = calculateRemainingTime(gameDto.startTimeStamp)
+                persistSession(game.id!!, game.role, gameDto.startTimeStamp)
+                gameState.update { it.copy(step = GameStep.Game, game = game, remainingTime = remainingTime) }
             } else {
                 // Handle error (e.g., wrong password)
                 // For now, just go back to the list
@@ -275,32 +278,35 @@ class GameViewModel @Inject constructor(
         if (createGameState !is CreateGameStep) return
         viewModelScope.launch {
             gameState.update { it.copy(step = GameStep.Loading) }
-            val game = gameApiService.createGame(
+            val startTimeStamp = System.currentTimeMillis()
+            val gameDto = gameApiService.createGame(
                 CreateGameRequestDto(
                     missionName = createGameState.missionName,
                     password = createGameState.password.ifBlank { null },
                     bounds = createGameState.bounds.map { LatLngDto(it.latitude, it.longitude) },
-                    towers = createGameState.towers.map { LatLngDto(it.latitude, it.longitude) }
-                )).body()?.toGameSession()
-                ?: throw IllegalStateException("game must not be null")
-            persistSession(game.id!!, game.role, 60 * 60L)
-            gameState.update { it.copy(step = GameStep.Game, game = game, remainingTime = 60 * 60L) }
+                    towers = createGameState.towers.map { LatLngDto(it.latitude, it.longitude) },
+                    startTimeStamp = startTimeStamp
+                )).body() ?: throw IllegalStateException("game must not be null")
+            val game = gameDto.toGameSession()
+            val remainingTime = calculateRemainingTime(startTimeStamp)
+            persistSession(game.id!!, game.role, startTimeStamp)
+            gameState.update { it.copy(step = GameStep.Game, game = game, remainingTime = remainingTime) }
         }
     }
 
-    private suspend fun persistSession(gameId: String, team: Team, remainingTime: Long?) {
+    private suspend fun persistSession(gameId: String, team: Team, startTimeStamp: Long?) {
         // SavedStateHandle — survives process death
         savedStateHandle[KEY_GAME_ID] = gameId
         savedStateHandle[KEY_TEAM] = team.name
-        savedStateHandle[KEY_REMAINING_TIME] = remainingTime
+        savedStateHandle[KEY_START_TIMESTAMP] = startTimeStamp
         // DataStore — survives full app kill / device reboot
-        gameSessionRepository.save(gameId, team.name, remainingTime)
+        gameSessionRepository.save(gameId, team.name, startTimeStamp)
     }
 
     private suspend fun clearPersistedSession() {
         savedStateHandle.remove<String>(KEY_GAME_ID)
         savedStateHandle.remove<String>(KEY_TEAM)
-        savedStateHandle.remove<Long>(KEY_REMAINING_TIME)
+        savedStateHandle.remove<Long>(KEY_START_TIMESTAMP)
         gameSessionRepository.clear()
     }
 
@@ -314,11 +320,11 @@ class GameViewModel @Inject constructor(
         // SavedStateHandle survives process death without a network round-trip.
         val savedGameId: String? = savedStateHandle[KEY_GAME_ID]
         val savedTeam: String? = savedStateHandle[KEY_TEAM]
-        val savedTime: Long? = savedStateHandle[KEY_REMAINING_TIME]
+        val savedStartTime: Long? = savedStateHandle[KEY_START_TIMESTAMP]
 
         if (savedGameId != null && savedTeam != null) {
             val team = runCatching { Team.valueOf(savedTeam) }.getOrNull() ?: return
-            restoreSession(savedGameId, team, savedTime)
+            restoreSession(savedGameId, team, savedStartTime)
             return
         }
 
@@ -326,20 +332,21 @@ class GameViewModel @Inject constructor(
         viewModelScope.launch {
             val persisted = gameSessionRepository.load() ?: return@launch
             val team = runCatching { Team.valueOf(persisted.team) }.getOrNull() ?: return@launch
-            restoreSession(persisted.gameId, team, persisted.remainingTime)
+            restoreSession(persisted.gameId, team, persisted.startTimeStamp)
         }
     }
 
-    private fun restoreSession(gameId: String, team: Team, remainingTime: Long?) {
+    private fun restoreSession(gameId: String, team: Team, startTimeStamp: Long?) {
         viewModelScope.launch {
             gameState.update { it.copy(step = GameStep.Loading) }
             try {
-                val game = gameApiService.findGameById(gameId).body()
-                    ?.toGameSession()
-                    ?.copy(role = team)
+                val gameDto = gameApiService.findGameById(gameId).body()
+                val game = gameDto?.toGameSession()?.copy(role = team)
                 if (game != null) {
+                    val actualStartTime = gameDto.startTimeStamp ?: startTimeStamp
+                    val remainingTime = calculateRemainingTime(actualStartTime)
                     gameState.update { it.copy(step = GameStep.Game, game = game, remainingTime = remainingTime) }
-                    Log.d("qwer", "Session restored for gameId=$gameId team=$team time=$remainingTime")
+                    Log.d("qwer", "Session restored for gameId=$gameId team=$team remainingTime=$remainingTime")
                 } else {
                     // Game no longer exists on the server — clean up and go to setup.
                     clearPersistedSession()
@@ -355,6 +362,8 @@ class GameViewModel @Inject constructor(
     companion object {
         private const val KEY_GAME_ID = "game_id"
         private const val KEY_TEAM = "team"
+        private const val KEY_START_TIMESTAMP = "start_timestamp"
         private const val KEY_REMAINING_TIME = "remaining_time"
+        private const val GAME_DURATION_SECONDS = 3600L
     }
 }

@@ -14,7 +14,8 @@ data class GameSession(
     val password: String? = null,
     val players: List<Player> = emptyList(),
     val towers: List<Tower> = emptyList(),
-    val role: Team = Team.DETECTIVE
+    val role: Team = Team.DETECTIVE,
+    val startTimeStamp: Long? = null
 )
 
 enum class Team {

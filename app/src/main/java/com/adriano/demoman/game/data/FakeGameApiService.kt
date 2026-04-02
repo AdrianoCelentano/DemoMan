@@ -14,14 +14,15 @@ class FakeGameApiService : GameApiService {
                 PlayerDto(100L, TeamDto.DETECTIVE, LatLngDto(52.5200, 13.4050))
             ),
             playgroundBoundaries = eggensteinMap,
-            towers = generateRandomTowers()
+            towers = generateRandomTowers(),
+            startTimeStamp = System.currentTimeMillis()
         )
     )
 
     override suspend fun createGame(request: CreateGameRequestDto): Response<GameDto> {
         val newGame = GameDto(
             id = UUID.randomUUID().toString(),
-            playgroundBoundaries = eggensteinMap,
+            playgroundBoundaries = request.bounds,
             players = listOf(
                 PlayerDto(
                     userId = System.currentTimeMillis(),
@@ -29,7 +30,8 @@ class FakeGameApiService : GameApiService {
                     position = LatLngDto(52.5200, 13.4050)
                 )
             ),
-            towers = generateRandomTowers()
+            towers = request.towers.map { TowerDto(position = it) },
+            startTimeStamp = request.startTimeStamp
         )
         games.add(newGame)
         return Response.success(newGame)

@@ -12,12 +12,12 @@ import javax.inject.Singleton
 
 private val KEY_GAME_ID = stringPreferencesKey("game_id")
 private val KEY_TEAM = stringPreferencesKey("team")
-private val KEY_REMAINING_TIME = longPreferencesKey("remaining_time")
+private val KEY_START_TIMESTAMP = longPreferencesKey("start_timestamp")
 
 data class PersistedGameSession(
     val gameId: String,
     val team: String,
-    val remainingTime: Long?
+    val startTimeStamp: Long?
 )
 
 @Singleton
@@ -33,8 +33,8 @@ class GameSessionRepository @Inject constructor(
             .map { prefs ->
                 val id = prefs[KEY_GAME_ID]
                 val team = prefs[KEY_TEAM]
-                val time = prefs[KEY_REMAINING_TIME]
-                if (id != null && team != null) PersistedGameSession(id, team, time) else null
+                val startTime = prefs[KEY_START_TIMESTAMP]
+                if (id != null && team != null) PersistedGameSession(id, team, startTime) else null
             }
             .firstOrNull()
     }
@@ -42,24 +42,15 @@ class GameSessionRepository @Inject constructor(
     /**
      * Persists the session details so the session can be restored after process death or restart.
      */
-    suspend fun save(gameId: String, team: String, remainingTime: Long?) {
+    suspend fun save(gameId: String, team: String, startTimeStamp: Long?) {
         dataStore.edit { prefs ->
             prefs[KEY_GAME_ID] = gameId
             prefs[KEY_TEAM] = team
-            if (remainingTime != null) {
-                prefs[KEY_REMAINING_TIME] = remainingTime
+            if (startTimeStamp != null) {
+                prefs[KEY_START_TIMESTAMP] = startTimeStamp
             } else {
-                prefs.remove(KEY_REMAINING_TIME)
+                prefs.remove(KEY_START_TIMESTAMP)
             }
-        }
-    }
-
-    /**
-     * Updates only the remaining time in the persisted session.
-     */
-    suspend fun updateRemainingTime(remainingTime: Long) {
-        dataStore.edit { prefs ->
-            prefs[KEY_REMAINING_TIME] = remainingTime
         }
     }
 
@@ -70,7 +61,7 @@ class GameSessionRepository @Inject constructor(
         dataStore.edit { prefs ->
             prefs.remove(KEY_GAME_ID)
             prefs.remove(KEY_TEAM)
-            prefs.remove(KEY_REMAINING_TIME)
+            prefs.remove(KEY_START_TIMESTAMP)
         }
     }
 }
