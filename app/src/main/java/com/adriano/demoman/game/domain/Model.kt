@@ -4,7 +4,8 @@ import com.google.android.gms.maps.model.LatLng
 
 data class GameViewState(
     val step: GameStep = GameStep.Setup,
-    val game: GameSession = GameSession()
+    val game: GameSession = GameSession(),
+    val remainingTime: Long? = null
 )
 
 data class GameSession(
@@ -72,4 +73,5 @@ sealed class GameEvent {
     data class ActivateTower(val towerIndex: Int): GameEvent()
     data class JoinGame(val gameId: String, val password: String? = null) : GameEvent()
     object EndGame : GameEvent() // after all towers are activated or MisterX got caught
+    object StartGameTimer : GameEvent()
 }

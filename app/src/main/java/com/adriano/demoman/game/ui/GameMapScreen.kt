@@ -45,18 +45,22 @@ import kotlinx.coroutines.launch
 fun GameMapScreen(
     innerPadding: PaddingValues,
     onEvent: (GameEvent) -> Unit,
-    game: GameSession
+    game: GameSession,
+    remainingTime: Long?
 ) {
     var permissionRequestCount by remember { mutableIntStateOf(0) }
     val hasLocationPermission = hasLocationPermission(permissionRequestCount)
 
     LaunchedEffect(hasLocationPermission) {
-        if (hasLocationPermission) onEvent(GameEvent.ObserveLocation)
+        if (hasLocationPermission) {
+            onEvent(GameEvent.ObserveLocation)
+            onEvent(GameEvent.StartGameTimer)
+        }
     }
     ExitGameDialog(onEvent)
 
     if (hasLocationPermission) {
-        GameMap(innerPadding, game)
+        GameMap(innerPadding, game, hasLocationPermission, remainingTime)
     } else {
         LocationPermissionScreen(
             onRequestPermission = { permissionRequestCount++ }
@@ -68,6 +72,8 @@ fun GameMapScreen(
 private fun GameMap(
     innerPadding: PaddingValues,
     game: GameSession,
+    hasLocationPermission: Boolean,
+    remainingTime: Long?
 ) {
     val mapLoaded = remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -101,7 +107,7 @@ private fun GameMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
             properties = MapProperties(
-                isMyLocationEnabled = true,
+                isMyLocationEnabled = hasLocationPermission,
                 mapStyleOptions = mapStyleOptions
             ),
             onMapLoaded = {
@@ -151,7 +157,32 @@ private fun GameMap(
                 color = if (game.role == Team.DETECTIVE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
             )
         )
+
+        // Timer at the bottom center
+        remainingTime?.let {
+            Text(
+                text = formatTime(it),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 32.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            )
+        }
     }
+}
+
+private fun formatTime(seconds: Long): String {
+    val minutes = seconds / 60
+    val secs = seconds % 60
+    return "%02d:%02d".format(minutes, secs)
 }
 
 @Composable
@@ -211,7 +242,8 @@ fun GameMapScreenAgentPreview() {
                 id = "Test",
                 role = Team.DETECTIVE,
                 playground = listOf(LatLng(49.0, 8.0), LatLng(49.1, 8.1))
-            )
+            ),
+            remainingTime = 3599L
         )
     }
 }
@@ -227,7 +259,8 @@ fun GameMapScreenDemomanPreview() {
                 id = "Test",
                 role = Team.MISTER_X,
                 playground = listOf(LatLng(49.0, 8.0), LatLng(49.1, 8.1))
-            )
+            ),
+            remainingTime = 120L
         )
     }
 }
