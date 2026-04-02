@@ -142,14 +142,15 @@ private fun CreateGameMap(
     scale: Float
 ) {
     val context = LocalContext.current
-    val mapStyleOptions = remember(state.step == CreateGameSteps.Boundary) {
-        val resourceId = if (state.step == CreateGameSteps.Boundary) R.raw.gray_map_style
+    val isBoundaryStep = state.step == CreateGameSteps.Boundary
+    val mapStyleOptions = remember(isBoundaryStep) {
+        val resourceId = if (isBoundaryStep) R.raw.gray_map_style
         else R.raw.map_style
         MapStyleOptions.loadRawResourceStyle(context, resourceId)
     }
 
     val saturation by animateFloatAsState(
-        targetValue = if (state.step == CreateGameSteps.Boundary) 0.2f else 1f,
+        targetValue = if (isBoundaryStep) 0.2f else 1f,
         animationSpec = tween(1000)
     )
 
@@ -170,16 +171,29 @@ private fun CreateGameMap(
             properties = MapProperties(
                 isMyLocationEnabled = true,
                 mapStyleOptions = mapStyleOptions,
-                maxZoomPreference = 14f,
+                minZoomPreference = 14f,
             ),
-            uiSettings = MapUiSettings(),
+            uiSettings = MapUiSettings(
+                scrollGesturesEnabled = isBoundaryStep,
+                zoomGesturesEnabled = isBoundaryStep,
+                tiltGesturesEnabled = isBoundaryStep,
+                rotationGesturesEnabled = isBoundaryStep,
+                myLocationButtonEnabled = isBoundaryStep,
+                compassEnabled = isBoundaryStep,
+                zoomControlsEnabled = isBoundaryStep
+            )
+            ,
             onMapClick = { position ->
                 viewModel.onEvent(GameEvent.CreateGameMapClick(position))
             }
         ) {
+            val cornerBitmap = remember { getResizedBitmap(context, R.drawable.border_marker, 82, 82) }
             state.bounds.forEachIndexed { index, position ->
                 Marker(
-                    rememberUpdatedMarkerState(position),
+                    flat = true,
+                    anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.8f),
+                    state = rememberUpdatedMarkerState(position),
+                    icon = cornerBitmap,
                     onClick = { marker ->
                         viewModel.onEvent(GameEvent.CreateGameMapClick(marker.position))
                         true
@@ -190,6 +204,7 @@ private fun CreateGameMap(
             state.towers.forEach { position ->
                 Marker(
                     state = rememberUpdatedMarkerState(position),
+                    anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.8f),
                     icon = towerBitmap,
                     onClick = { marker ->
                         viewModel.onEvent(GameEvent.CreateGameMapClick(marker.position))

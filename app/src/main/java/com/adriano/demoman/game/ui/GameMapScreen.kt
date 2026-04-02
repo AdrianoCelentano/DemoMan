@@ -212,6 +212,7 @@ fun TowerMarker(towers: List<Tower>, scale: Float) {
     towers.forEach { tower ->
         Marker(
             alpha = scale,
+            anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.8f),
             icon = if (tower.isActive) towerDownIcon else towerIcon,
             state = rememberUpdatedMarkerState(position = tower.position),
         )

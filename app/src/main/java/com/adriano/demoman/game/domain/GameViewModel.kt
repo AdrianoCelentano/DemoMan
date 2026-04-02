@@ -122,9 +122,16 @@ class GameViewModel @Inject constructor(
         if (createGameState !is CreateGameStep) return
         when {
             createGameState.bounds.isEmpty() -> gameState.update { it.copy(step = GameStep.Setup) }
-            createGameState.towers.isEmpty() -> removeBoundary(createGameState.bounds.last())
+            createGameState.towers.isEmpty() -> removeAllBoundaries()
             else -> removeTower(createGameState.towers.last())
         }
+    }
+
+    private fun removeAllBoundaries() {
+        val createGameState = gameState.value.step
+        if (createGameState !is CreateGameStep) return
+        val newState = createGameState.copy(bounds = emptyList())
+        gameState.update { it.copy(step = newState) }
     }
 
     private fun updateCreateGameDetails(event: GameEvent.UpdateCreateGameDetails) {
@@ -153,7 +160,7 @@ class GameViewModel @Inject constructor(
             }
 
             CreateGameSteps.Complete -> {
-                //Create Game and navigate to game Map
+                if (createGameState.towers.contains(position)) removeTower(position)
             }
         }
     }
@@ -308,7 +315,7 @@ class GameViewModel @Inject constructor(
         gameState.update { it.copy(game = game) }
     }
 
-    fun LatLng.isWithinRange(other: LatLng, meters: Float = 40f): Boolean {
+    fun LatLng.isWithinRange(other: LatLng, meters: Float = 50f): Boolean {
         val results = FloatArray(1)
         Location.distanceBetween(
             this.latitude,
