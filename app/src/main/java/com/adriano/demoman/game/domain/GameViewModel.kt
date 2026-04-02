@@ -307,7 +307,7 @@ class GameViewModel @Inject constructor(
         gameState.update { it.copy(game = game) }
     }
 
-    fun LatLng.isWithinRange(other: LatLng, meters: Float = 50f): Boolean {
+    fun LatLng.isWithinRange(other: LatLng, meters: Float = 40f): Boolean {
         val results = FloatArray(1)
         Location.distanceBetween(
             this.latitude,
