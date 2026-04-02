@@ -75,56 +75,10 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
     val hasLocationPermission = hasLocationPermission(permissionRequestCount)
 
     if (hasLocationPermission) {
-        val scale by animateFloatAsState(
-            targetValue = if (state.step != CreateGameSteps.Boundary) 1f else 0f,
-            animationSpec = tween(
-                durationMillis = 2000,
-                delayMillis = 500,
-                easing = FastOutSlowInEasing
-            ),
-            label = "MarkerScale"
-        )
-
-        val context = LocalContext.current
-        val mapStyleOptions = remember {
-            MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style)
-        }
-        val playground = remember(state.bounds) { createOuterBounds(state.bounds) }
-        val cameraPositionState = rememberCameraPositionState()
-        LaunchedEffect(hasLocationPermission) {
-            if (hasLocationPermission) {
-                val location = viewModel.lastLocation()
-                cameraPositionState.animate(
-                    CameraUpdateFactory.newLatLngZoom(
-                        LatLng(
-                            location.latitude,
-                            location.longitude
-                        ), 15f
-                    ), 1000
-                )
-            }
-        }
-        LaunchedEffect(state.bounds.size) {
-            if (state.bounds.size == 4) {
-                val boundsBuilder = LatLngBounds.Builder()
-                state.bounds.forEach { boundsBuilder.include(it) }
-                cameraPositionState.animate(
-                    update = newLatLngBounds(boundsBuilder.build(), 20),
-                    durationMs = 1000
-                )
-            }
-        }
-
         CreateGameMap(
             innerPadding,
-            cameraPositionState,
-            hasLocationPermission,
             state,
-            mapStyleOptions,
             viewModel,
-            context,
-            playground,
-            scale
         )
     } else {
         LocationPermissionScreen(
@@ -133,18 +87,52 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
     }
 }
 
+@SuppressLint("MissingPermission")
 @Composable
 private fun CreateGameMap(
     innerPadding: PaddingValues,
-    cameraPositionState: CameraPositionState,
-    hasLocationPermission: Boolean,
     state: CreateGameStep,
-    mapStyleOptions: MapStyleOptions,
     viewModel: GameViewModel,
-    context: Context,
-    playground: List<LatLng>,
-    scale: Float
 ) {
+
+    val scale by animateFloatAsState(
+        targetValue = if (state.step != CreateGameSteps.Boundary) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 2000,
+            delayMillis = 500,
+            easing = FastOutSlowInEasing
+        ),
+        label = "MarkerScale"
+    )
+
+    val context = LocalContext.current
+    val mapStyleOptions = remember {
+        MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style)
+    }
+    val playground = remember(state.bounds) { createOuterBounds(state.bounds) }
+    val cameraPositionState = rememberCameraPositionState()
+    LaunchedEffect(Unit) {
+        val location = viewModel.lastLocation()
+        cameraPositionState.animate(
+            CameraUpdateFactory.newLatLngZoom(
+                LatLng(
+                    location.latitude,
+                    location.longitude
+                ), 15f
+            ), 1000
+        )
+    }
+    LaunchedEffect(state.bounds.size) {
+        if (state.bounds.size == 4) {
+            val boundsBuilder = LatLngBounds.Builder()
+            state.bounds.forEach { boundsBuilder.include(it) }
+            cameraPositionState.animate(
+                update = newLatLngBounds(boundsBuilder.build(), 20),
+                durationMs = 1000
+            )
+        }
+    }
+
     Box(
         modifier = Modifier
             .padding(innerPadding)
@@ -155,7 +143,7 @@ private fun CreateGameMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
             properties = MapProperties(
-                isMyLocationEnabled = hasLocationPermission,
+                isMyLocationEnabled = true,
                 mapStyleOptions = if (state.step != CreateGameSteps.Boundary) mapStyleOptions else null
             ),
             uiSettings = MapUiSettings(),
@@ -316,7 +304,9 @@ fun CreateGameDialog(
                     "SPEICHERN",
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        color = if (name.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        color = if (name.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
+                            alpha = 0.3f
+                        )
                     )
                 )
             }
