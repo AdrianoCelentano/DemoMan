@@ -14,13 +14,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -53,6 +47,28 @@ fun GameMapScreen(
     onEvent: (GameEvent) -> Unit,
     game: GameSession
 ) {
+    var permissionRequestCount by remember { mutableIntStateOf(0) }
+    val hasLocationPermission = hasLocationPermission(permissionRequestCount)
+
+    LaunchedEffect(hasLocationPermission) {
+        if (hasLocationPermission) onEvent(GameEvent.ObserveLocation)
+    }
+    ExitGameDialog(onEvent)
+
+    if (hasLocationPermission) {
+        GameMap(innerPadding, game)
+    } else {
+        LocationPermissionScreen(
+            onRequestPermission = { permissionRequestCount++ }
+        )
+    }
+}
+
+@Composable
+private fun GameMap(
+    innerPadding: PaddingValues,
+    game: GameSession,
+) {
     val mapLoaded = remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (mapLoaded.value) 1f else 0f,
@@ -63,13 +79,7 @@ fun GameMapScreen(
         ),
         label = "MarkerScale"
     )
-
-    val hasLocationPermission = hasLocationPermission()
-    LaunchedEffect(hasLocationPermission) {
-        if (hasLocationPermission) onEvent(GameEvent.ObserveLocation)
-    }
-    ExitGameDialog(onEvent)
-
+    
     Box(
         modifier = Modifier.padding(innerPadding)
     ) {
@@ -91,7 +101,7 @@ fun GameMapScreen(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
             properties = MapProperties(
-                isMyLocationEnabled = hasLocationPermission,
+                isMyLocationEnabled = true,
                 mapStyleOptions = mapStyleOptions
             ),
             onMapLoaded = {
@@ -100,7 +110,8 @@ fun GameMapScreen(
                 scope.launch {
                     cameraPositionState.animate(
                         update = newLatLngBounds(boundsBuilder.build(), 20),
-                        durationMs = 1000)
+                        durationMs = 1000
+                    )
                 }
                 mapLoaded.value = true
             },

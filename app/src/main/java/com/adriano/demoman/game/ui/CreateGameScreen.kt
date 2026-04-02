@@ -1,6 +1,7 @@
 package com.adriano.demoman.game.ui
 
 import android.annotation.SuppressLint
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -30,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,6 +53,7 @@ import com.google.android.gms.maps.CameraUpdateFactory.newLatLngBounds
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
+import com.google.maps.android.compose.CameraPositionState
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
@@ -68,47 +71,80 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
 
     BackHandler { viewModel.onEvent(GameEvent.CreateGameBack) }
 
-    val scale by animateFloatAsState(
-        targetValue = if (state.step != CreateGameSteps.Boundary) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = 2000,
-            delayMillis = 500,
-            easing = FastOutSlowInEasing
-        ),
-        label = "MarkerScale"
-    )
+    var permissionRequestCount by remember { mutableIntStateOf(0) }
+    val hasLocationPermission = hasLocationPermission(permissionRequestCount)
 
-    val context = LocalContext.current
-    val hasLocationPermission = hasLocationPermission()
-    val mapStyleOptions = remember {
-        MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style)
-    }
-    val playground = remember(state.bounds) { createOuterBounds(state.bounds) }
-    val cameraPositionState = rememberCameraPositionState()
-    LaunchedEffect(hasLocationPermission) {
-        if (hasLocationPermission) {
-            val location = viewModel.lastLocation()
-            cameraPositionState.animate(
-                CameraUpdateFactory.newLatLngZoom(
-                    LatLng(
-                        location.latitude,
-                        location.longitude
-                    ), 15f
-                ), 1000
-            )
-        }
-    }
-    LaunchedEffect(state.bounds.size) {
-        if (state.bounds.size == 4) {
-            val boundsBuilder = LatLngBounds.Builder()
-            state.bounds.forEach { boundsBuilder.include(it) }
-            cameraPositionState.animate(
-                update = newLatLngBounds(boundsBuilder.build(), 20),
-                durationMs = 1000
-            )
-        }
-    }
+    if (hasLocationPermission) {
+        val scale by animateFloatAsState(
+            targetValue = if (state.step != CreateGameSteps.Boundary) 1f else 0f,
+            animationSpec = tween(
+                durationMillis = 2000,
+                delayMillis = 500,
+                easing = FastOutSlowInEasing
+            ),
+            label = "MarkerScale"
+        )
 
+        val context = LocalContext.current
+        val mapStyleOptions = remember {
+            MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style)
+        }
+        val playground = remember(state.bounds) { createOuterBounds(state.bounds) }
+        val cameraPositionState = rememberCameraPositionState()
+        LaunchedEffect(hasLocationPermission) {
+            if (hasLocationPermission) {
+                val location = viewModel.lastLocation()
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newLatLngZoom(
+                        LatLng(
+                            location.latitude,
+                            location.longitude
+                        ), 15f
+                    ), 1000
+                )
+            }
+        }
+        LaunchedEffect(state.bounds.size) {
+            if (state.bounds.size == 4) {
+                val boundsBuilder = LatLngBounds.Builder()
+                state.bounds.forEach { boundsBuilder.include(it) }
+                cameraPositionState.animate(
+                    update = newLatLngBounds(boundsBuilder.build(), 20),
+                    durationMs = 1000
+                )
+            }
+        }
+
+        CreateGameMap(
+            innerPadding,
+            cameraPositionState,
+            hasLocationPermission,
+            state,
+            mapStyleOptions,
+            viewModel,
+            context,
+            playground,
+            scale
+        )
+    } else {
+        LocationPermissionScreen(
+            onRequestPermission = { permissionRequestCount++ }
+        )
+    }
+}
+
+@Composable
+private fun CreateGameMap(
+    innerPadding: PaddingValues,
+    cameraPositionState: CameraPositionState,
+    hasLocationPermission: Boolean,
+    state: CreateGameStep,
+    mapStyleOptions: MapStyleOptions,
+    viewModel: GameViewModel,
+    context: Context,
+    playground: List<LatLng>,
+    scale: Float
+) {
     Box(
         modifier = Modifier
             .padding(innerPadding)
@@ -203,7 +239,6 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
         }
 
     }
-
 }
 
 @Composable
