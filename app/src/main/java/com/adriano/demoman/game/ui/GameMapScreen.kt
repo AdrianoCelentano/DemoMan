@@ -1,5 +1,6 @@
 package com.adriano.demoman.game.ui
 
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -17,15 +18,19 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adriano.demoman.R
 import com.adriano.demoman.game.domain.DebugViewState
 import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.game.domain.GameSession
+import com.adriano.demoman.game.domain.GameViewModel
 import com.adriano.demoman.game.domain.Team
 import com.adriano.demoman.game.domain.Tower
 import com.adriano.demoman.ui.theme.DemoManTheme
@@ -41,6 +46,7 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polygon
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 @Composable
@@ -85,7 +91,7 @@ private fun GameMap(
             onEvent(GameEvent.StopObservingGameState)
         }
     }
-    
+
     val mapLoaded = remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (mapLoaded.value) 1f else 0f,
@@ -96,7 +102,7 @@ private fun GameMap(
         ),
         label = "MarkerScale"
     )
-    
+
     Box(
         modifier = Modifier.padding(innerPadding)
     ) {
@@ -118,7 +124,6 @@ private fun GameMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
             properties = MapProperties(
-                isMyLocationEnabled = true,
                 mapStyleOptions = mapStyleOptions
             ),
             onMapLoaded = {
@@ -142,6 +147,8 @@ private fun GameMap(
                 zoomControlsEnabled = false
             )
         ) {
+            PlayerSpirit(context, game, scale)
+
             TowerMarker(game.towers, scale)
             CornerMarker(game.playground, scale)
             Polygon(
@@ -196,9 +203,37 @@ private fun GameMap(
 }
 
 @Composable
+private fun PlayerSpirit(
+    context: Context,
+    game: GameSession,
+    scale: Float,
+    viewModel: GameViewModel = hiltViewModel()
+) {
+    val position = viewModel.playerPositionFlow.collectAsStateWithLifecycle().value ?: return
+
+    val playerSprit = remember {
+        getResizedBitmapDescriptor(
+            context,
+            if (game.role == Team.MISTER_X) R.drawable.demo_man else R.drawable.agent,
+            54,
+            54
+        )
+    }
+
+    Marker(
+        alpha = scale,
+        anchor = Offset(0.5f, 0.8f),
+        icon = playerSprit,
+        state = rememberUpdatedMarkerState(position = position),
+        onClick = { true }
+    )
+}
+
+@Composable
 fun CornerMarker(bounds: List<LatLng>, scale: Float) {
     val context = LocalContext.current
-    val cornerBitmap = remember { getResizedBitmapDescriptor(context, R.drawable.border_marker, 82, 82) }
+    val cornerBitmap =
+        remember { getResizedBitmapDescriptor(context, R.drawable.border_marker, 82, 82) }
     bounds.forEach { position ->
         Marker(
             alpha = scale,

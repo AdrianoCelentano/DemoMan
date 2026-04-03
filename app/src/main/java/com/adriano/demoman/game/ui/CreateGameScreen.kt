@@ -166,7 +166,7 @@ private fun CreateGameMap(
                 minZoomPreference = 14f,
             ),
             uiSettings = MapUiSettings(
-                scrollGesturesEnabled = true,
+                scrollGesturesEnabled = isBoundaryStep,
                 zoomGesturesEnabled = isBoundaryStep,
                 tiltGesturesEnabled = isBoundaryStep,
                 rotationGesturesEnabled = isBoundaryStep,

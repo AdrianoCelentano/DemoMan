@@ -50,6 +50,7 @@ class GameViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
+    val playerPositionFlow: MutableStateFlow<LatLng?> = MutableStateFlow(null)
     private val DEBUG_ENABLED = false
 
     private var gameUpdatesJob: Job? = null
@@ -255,7 +256,6 @@ class GameViewModel @Inject constructor(
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun observePlayerLocation() {
-        if (gameState.value.game.role == Team.DETECTIVE) return
         if (DEBUG_ENABLED) {
             flow {
                 gameState.value.game.towers.forEachIndexed { index, tower ->
@@ -276,6 +276,8 @@ class GameViewModel @Inject constructor(
         Log.d("qwer", "new player loaction")
         val playerPosition = event.position
         val game = gameState.value.game
+        playerPositionFlow.value = playerPosition
+        if (game.role == Team.DETECTIVE) return
         game.towers.forEachIndexed { index, tower ->
             if (tower.position.isWithinRange(playerPosition) && tower.isActive.not() && !activatingTowers.contains(
                     index
@@ -286,7 +288,7 @@ class GameViewModel @Inject constructor(
             }
         }
 
-        if (DEBUG_ENABLED && game.role == Team.MISTER_X) {
+        if (DEBUG_ENABLED) {
             gameState.update {
                 it.copy(
                     debugState = calculateDebugState(
