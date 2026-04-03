@@ -24,6 +24,7 @@ import com.adriano.demoman.game.data.LocationProvider
 import com.adriano.demoman.game.data.toGameSession
 import com.adriano.demoman.game.ui.orderClockwise
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -168,6 +169,9 @@ class GameViewModel @Inject constructor(
     private fun addTower(position: LatLng) {
         val createGameState = gameState.value.step
         if (createGameState !is CreateGameStep) return
+        val builder = LatLngBounds.Builder()
+        createGameState.bounds.forEach { builder.include(it) }
+        if (builder.build().contains(position).not()) return
         val newTowers = createGameState.towers + position
         val newState = createGameState.copy(towers = newTowers)
         gameState.update { it.copy(step = newState) }

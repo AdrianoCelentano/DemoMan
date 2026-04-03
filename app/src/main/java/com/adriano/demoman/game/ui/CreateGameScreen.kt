@@ -270,7 +270,6 @@ private fun MapIcon(
                 image = cornerBitmap,
                 topLeft = Offset(
                     x = screenPosition.x.toFloat() - (imageWidth / 2f),
-//                    y = screenPosition.y.toFloat() - imageHeight.toFloat()
                     y = screenPosition.y.toFloat() - imageHeight.toFloat() + imageHeight.toFloat() / 7
                 )
             )
