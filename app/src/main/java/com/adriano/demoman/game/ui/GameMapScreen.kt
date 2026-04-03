@@ -198,7 +198,7 @@ private fun GameMap(
 @Composable
 fun CornerMarker(bounds: List<LatLng>, scale: Float) {
     val context = LocalContext.current
-    val cornerBitmap = remember { getResizedBitmap(context, R.drawable.border_marker, 82, 82) }
+    val cornerBitmap = remember { getResizedBitmapDescriptor(context, R.drawable.border_marker, 82, 82) }
     bounds.forEach { position ->
         Marker(
             alpha = scale,
@@ -206,6 +206,7 @@ fun CornerMarker(bounds: List<LatLng>, scale: Float) {
             anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.8f),
             state = rememberUpdatedMarkerState(position),
             icon = cornerBitmap,
+            onClick = { true }
         )
     }
 
@@ -221,10 +222,10 @@ private fun formatTime(seconds: Long): String {
 fun TowerMarker(towers: List<Tower>, scale: Float) {
     val context = LocalContext.current
     val towerIcon = remember {
-        getResizedBitmap(context, R.drawable.tower, 104, 104)
+        getResizedBitmapDescriptor(context, R.drawable.tower, 104, 104)
     }
     val towerDownIcon = remember {
-        getResizedBitmap(context, R.drawable.tower_down, 104, 104)
+        getResizedBitmapDescriptor(context, R.drawable.tower_down, 104, 104)
     }
     towers.forEach { tower ->
         Marker(
@@ -232,6 +233,7 @@ fun TowerMarker(towers: List<Tower>, scale: Float) {
             anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.8f),
             icon = if (tower.isActive) towerDownIcon else towerIcon,
             state = rememberUpdatedMarkerState(position = tower.position),
+            onClick = { true }
         )
     }
 }
