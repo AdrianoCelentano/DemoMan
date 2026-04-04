@@ -21,6 +21,7 @@ import com.adriano.demoman.game.data.GameSessionRepository
 import com.adriano.demoman.game.data.JoinGameRequestDto
 import com.adriano.demoman.game.data.LatLngDto
 import com.adriano.demoman.game.data.LocationProvider
+import com.adriano.demoman.game.data.UpdatePlayerPositionRequest
 import com.adriano.demoman.game.data.toGameSession
 import com.adriano.demoman.game.ui.orderClockwise
 import com.google.android.gms.maps.model.LatLng
@@ -278,7 +279,16 @@ class GameViewModel @Inject constructor(
         val game = gameState.value.game
         playerPositionFlow.value = playerPosition
         if (game.role == Team.DETECTIVE) return
-
+        val demoMan = game.players.first { it.team == Team.MISTER_X }
+        viewModelScope.launch {
+            gameApiService.updatePlayerPosition(
+                UpdatePlayerPositionRequest(
+                    game.id!!,
+                    demoMan.userId,
+                    playerPosition
+                )
+            )
+        }
         game.towers.forEachIndexed { index, tower ->
             if (tower.position.isWithinRange(playerPosition) && tower.isActive.not() && !activatingTowers.contains(
                     index
@@ -305,11 +315,25 @@ class GameViewModel @Inject constructor(
         if (gameState.value.game.role == Team.MISTER_X) return
         if (gameUpdatesJob?.isActive == true) return
         gameUpdatesJob = viewModelScope.launch {
-            while (isActive) {
-                runCatching { fetchGameState() }
-                delay(10.seconds)
+            launch {
+                while (isActive) {
+                    runCatching { fetchGameState() }
+                    delay(10.seconds)
+                }
+            }
+            launch {
+                while (isActive) {
+                    runCatching { updateMisterXPosition() }
+                    delay(10.seconds)
+                }
             }
         }
+    }
+
+    fun updateMisterXPosition() {
+        val demoMan = gameState.value.game.players.first { it.team == Team.MISTER_X }
+        val game = gameState.value.game.copy(lastMisterXPosition = demoMan.position)
+        gameState.update { it.copy(game = game) }
     }
 
     private suspend fun fetchGameState() {

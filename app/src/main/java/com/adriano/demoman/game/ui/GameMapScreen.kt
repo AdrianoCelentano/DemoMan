@@ -230,7 +230,26 @@ private fun PlayerSpirit(
         state = rememberUpdatedMarkerState(position = position),
         onClick = { true }
     )
-}
+
+    if (game.role == Team.DETECTIVE) {
+        val demoPosition = viewModel.gameState.value.game.lastMisterXPosition ?: return
+        val demoSprit = remember {
+            getResizedBitmapDescriptor(
+                context,
+                R.drawable.demo_man,
+                54,
+                54
+            )
+        }
+
+        Marker(
+            anchor = Offset(0.5f, 0.8f),
+            icon = demoSprit,
+            state = rememberUpdatedMarkerState(position = demoPosition),
+            onClick = { true }
+        )
+    }
+ }
 
 @Composable
 fun CornerMarker(bounds: List<LatLng>, scale: Float) {
