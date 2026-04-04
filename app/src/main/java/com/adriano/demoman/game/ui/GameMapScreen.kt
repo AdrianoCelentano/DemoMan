@@ -149,7 +149,10 @@ private fun GameMap(
         ) {
             PlayerSpirit(context, game, scale)
 
-            TowerMarker(game.towers, scale)
+            when (game.role) {
+                Team.DETECTIVE -> AgentTower(game.towers)
+                Team.MISTER_X -> TowerMarker(game.towers, scale)
+            }
             CornerMarker(game.playground, scale)
             Polygon(
                 points = bounds,
@@ -272,6 +275,23 @@ fun TowerMarker(towers: List<Tower>, scale: Float) {
         )
     }
 }
+
+@Composable
+fun AgentTower(towers: List<Tower>) {
+    val context = LocalContext.current
+    val towerDownIcon = remember {
+        getResizedBitmapDescriptor(context, R.drawable.tower_down, 104, 104)
+    }
+    towers.filter { it.isActive }.forEach { tower ->
+        Marker(
+            anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.8f),
+            icon = towerDownIcon,
+            state = rememberUpdatedMarkerState(position = tower.position),
+            onClick = { true }
+        )
+    }
+}
+
 
 @Composable
 private fun ExitGameDialog(onEvent: (GameEvent) -> Unit) {

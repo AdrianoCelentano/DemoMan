@@ -278,6 +278,7 @@ class GameViewModel @Inject constructor(
         val game = gameState.value.game
         playerPositionFlow.value = playerPosition
         if (game.role == Team.DETECTIVE) return
+
         game.towers.forEachIndexed { index, tower ->
             if (tower.position.isWithinRange(playerPosition) && tower.isActive.not() && !activatingTowers.contains(
                     index

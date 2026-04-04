@@ -1,5 +1,6 @@
 package com.adriano.demoman.game.data
 
+import com.google.android.gms.maps.model.LatLng
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.ResponseBody.Companion.toResponseBody
 import retrofit2.Response
@@ -86,6 +87,24 @@ class FakeGameApiService : GameApiService {
         val updatedGame = game.copy(towers = updatedTowers)
         games[index] = updatedGame
 
+        return Response.success(updatedGame)
+    }
+
+    override suspend fun updatePlayerPosition(request: UpdatePlayerPositionRequest): Response<GameDto> {
+        val index = games.indexOfFirst { it.id == request.gameId }
+        if (index == -1) {
+            val errorBody = "Game not found".toResponseBody("text/plain".toMediaTypeOrNull())
+            return Response.error(404, errorBody)
+        }
+
+        val game = games[index]
+        val updatedPlayers = game.players.map { player ->
+            if (player.userId == request.userId) {
+                player.copy(position = LatLngDto(request.position.latitude, request.position.longitude))
+            } else player
+        }
+        val updatedGame = game.copy(players = updatedPlayers)
+        games[index] = updatedGame
         return Response.success(updatedGame)
     }
 
