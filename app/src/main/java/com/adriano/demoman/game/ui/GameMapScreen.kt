@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.coroutineScope
 import com.adriano.demoman.R
 import com.adriano.demoman.game.domain.DebugViewState
 import com.adriano.demoman.game.domain.GameEvent
@@ -46,6 +47,9 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polygon
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
@@ -86,10 +90,9 @@ private fun GameMap(
     onEvent: (GameEvent) -> Unit
 ) {
     LifecycleResumeEffect(Unit) {
-        onEvent(GameEvent.ObserveGameState)
-        onPauseOrDispose {
-            onEvent(GameEvent.StopObservingGameState)
-        }
+        val visibleScope = CoroutineScope(Job())
+        onEvent(GameEvent.ObserveGameState(visibleScope))
+        onPauseOrDispose { visibleScope.cancel() }
     }
 
     val mapLoaded = remember { mutableStateOf(false) }
@@ -249,7 +252,7 @@ private fun PlayerSpirit(
             onClick = { true }
         )
     }
- }
+}
 
 @Composable
 fun CornerMarker(bounds: List<LatLng>, scale: Float) {

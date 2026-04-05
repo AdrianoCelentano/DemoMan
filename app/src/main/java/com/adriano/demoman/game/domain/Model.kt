@@ -1,6 +1,7 @@
 package com.adriano.demoman.game.domain
 
 import com.google.android.gms.maps.model.LatLng
+import kotlinx.coroutines.CoroutineScope
 
 data class GameViewState(
     val step: GameStep = GameStep.Setup,
@@ -72,9 +73,8 @@ sealed class GameEvent {
     data class PlayerPositionUpdate(val position: LatLng) : GameEvent()
     object GoToCreateGame : GameEvent()
     object CreateGame : GameEvent()
-    object ObserveGameState : GameEvent()
+    data class ObserveGameState(val coroutineScope: CoroutineScope) : GameEvent()
     object UpdateMisterXPosition : GameEvent()
-    object StopObservingGameState : GameEvent()
     data class CreateGameMapClick(val position: LatLng) : GameEvent()
     data class UpdateCreateGameDetails(val name: String, val pass: String, val duration: Long) : GameEvent()
     data class ActivateTower(val towerIndex: Int): GameEvent()
