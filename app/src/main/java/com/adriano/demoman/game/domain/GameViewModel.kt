@@ -52,6 +52,7 @@ class GameViewModel @Inject constructor(
 ) : ViewModel() {
 
     val playerPositionFlow: MutableStateFlow<LatLng?> = MutableStateFlow(null)
+    val timer: MutableStateFlow<Long?> = MutableStateFlow(null)
     private val DEBUG_ENABLED = false
 
     private var gameUpdatesJob: Job? = null
@@ -90,6 +91,9 @@ class GameViewModel @Inject constructor(
                 gameUpdatesJob?.cancel()
                 gameUpdatesJob = null
             }
+
+            GameEvent.UpdateMisterXPosition -> updateMisterXPosition()
+            GameEvent.UpdateGame -> viewModelScope.launch { fetchGameState() }
         }
     }
 
@@ -97,12 +101,12 @@ class GameViewModel @Inject constructor(
     private fun startGameTimer() {
         if (timerJob != null) return
         timerJob = viewModelScope.launch {
-            var seconds = gameState.value.remainingTime ?: calculateRemainingTime(
+            var seconds = timer.value ?: calculateRemainingTime(
                 gameState.value.game.startTimeStamp,
                 gameState.value.game.gameDurationInMinutes
             )
             while (seconds >= 0 && isActive) {
-                gameState.update { it.copy(remainingTime = seconds) }
+                timer.value = seconds
                 savedStateHandle[KEY_REMAINING_TIME] = seconds
                 delay(1000)
                 seconds--
@@ -311,20 +315,21 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun observeGameUpdates() {
         if (gameState.value.game.role == Team.MISTER_X) return
         if (gameUpdatesJob?.isActive == true) return
         gameUpdatesJob = viewModelScope.launch {
             launch {
                 while (isActive) {
-                    runCatching { fetchGameState() }
-                    delay(10.seconds)
+                    runCatching { onEvent(GameEvent.UpdateGame) }
+                    delay(15.seconds)
                 }
             }
             launch {
                 while (isActive) {
-                    runCatching { updateMisterXPosition() }
-                    delay(10.seconds)
+                    runCatching { onEvent(GameEvent.UpdateMisterXPosition) }
+                    delay(20.seconds)
                 }
             }
         }
@@ -339,7 +344,10 @@ class GameViewModel @Inject constructor(
     private suspend fun fetchGameState() {
         val gameDto =
             gameApiService.findGameById(gameState.value.game.id!!).body()!!
-        val game = gameDto.toGameSession().copy(role = Team.DETECTIVE)
+        val game = gameDto.toGameSession().copy(
+            role = Team.DETECTIVE,
+            lastMisterXPosition = gameState.value.game.lastMisterXPosition
+        )
         if (gameState.value.game.towers.count { it.isActive } != game.towers.count { it.isActive }) {
             triggerVibration()
         }
@@ -371,10 +379,10 @@ class GameViewModel @Inject constructor(
             gameState.update {
                 it.copy(
                     step = GameStep.Setup,
-                    remainingTime = null,
                     debugState = null
                 )
             }
+            timer.value = null
         }
     }
 
@@ -407,9 +415,9 @@ class GameViewModel @Inject constructor(
                     it.copy(
                         step = GameStep.Game,
                         game = game,
-                        remainingTime = remainingTime
                     )
                 }
+                timer.value = remainingTime
                 triggerVibration()
             } else {
                 // Handle error (e.g., wrong password)
@@ -442,9 +450,9 @@ class GameViewModel @Inject constructor(
                 it.copy(
                     step = GameStep.Game,
                     game = game,
-                    remainingTime = remainingTime
                 )
             }
+            timer.value = remainingTime
             triggerVibration()
         }
     }
@@ -505,9 +513,9 @@ class GameViewModel @Inject constructor(
                         it.copy(
                             step = GameStep.Game,
                             game = game,
-                            remainingTime = remainingTime
                         )
                     }
+                    timer.value = remainingTime
                     Log.d(
                         "qwer",
                         "Session restored for gameId=$gameId team=$team remainingTime=$remainingTime"

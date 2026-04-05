@@ -31,10 +31,11 @@ import com.adriano.demoman.game.domain.GameViewModel
 @Composable
 fun GameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewModel()) {
     val state = viewModel.gameState.collectAsState().value
+    val timer = viewModel.timer.collectAsState().value
     val onEvent = viewModel::onEvent
     when (state.step) {
         is GameList -> GameListScreen(state.step.games, onEvent, innerPadding)
-        GameStep.Game -> GameMapScreen(innerPadding, onEvent, state.game, state.remainingTime, state.debugState)
+        GameStep.Game -> GameMapScreen(innerPadding, onEvent, state.game, timer, state.debugState)
         GameStep.Loading -> LoadingScreen()
         GameStep.Setup -> SetupScreen(onEvent, innerPadding)
         is CreateGameStep -> CreateGameScreen(innerPadding)

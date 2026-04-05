@@ -1,5 +1,6 @@
 package com.adriano.demoman.game.data
 
+import com.adriano.demoman.game.domain.Team
 import com.google.android.gms.maps.model.LatLng
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -30,7 +31,7 @@ class FakeGameApiService : GameApiService {
                     userId = System.currentTimeMillis(),
                     team = request.team,
                     position = LatLngDto(52.5200, 13.4050)
-                )
+                ),
             ),
             towers = request.towers.map { TowerDto(position = it) },
             startTimeStamp = request.startTimeStamp,
@@ -57,8 +58,13 @@ class FakeGameApiService : GameApiService {
     override suspend fun joinGame(request: JoinGameRequestDto): Response<GameDto> {
         val index = games.indexOfFirst { it.id == request.gameId }
         if (index == -1) {
-            val errorBody = "Game not found".toResponseBody("text/plain".toResponseBody().toString().toMediaTypeOrNull())
-            return Response.error(404, "Game not found".toResponseBody("text/plain".toMediaTypeOrNull()))
+            val errorBody = "Game not found".toResponseBody(
+                "text/plain".toResponseBody().toString().toMediaTypeOrNull()
+            )
+            return Response.error(
+                404,
+                "Game not found".toResponseBody("text/plain".toMediaTypeOrNull())
+            )
         }
 
         val game = games[index]
@@ -100,7 +106,12 @@ class FakeGameApiService : GameApiService {
         val game = games[index]
         val updatedPlayers = game.players.map { player ->
             if (player.userId == request.userId) {
-                player.copy(position = LatLngDto(request.position.latitude, request.position.longitude))
+                player.copy(
+                    position = LatLngDto(
+                        request.position.latitude,
+                        request.position.longitude
+                    )
+                )
             } else player
         }
         val updatedGame = game.copy(players = updatedPlayers)
