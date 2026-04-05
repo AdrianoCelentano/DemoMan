@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.coroutineScope
 import com.adriano.demoman.R
 import com.adriano.demoman.game.domain.DebugViewState
 import com.adriano.demoman.game.domain.GameEvent
@@ -34,6 +33,8 @@ import com.adriano.demoman.game.domain.GameSession
 import com.adriano.demoman.game.domain.GameViewModel
 import com.adriano.demoman.game.domain.Team
 import com.adriano.demoman.game.domain.Tower
+import com.adriano.demoman.game.domain.createOuterBounds
+import com.adriano.demoman.game.domain.findCenter
 import com.adriano.demoman.ui.theme.DemoManTheme
 import com.google.android.gms.maps.CameraUpdateFactory.newLatLngBounds
 import com.google.android.gms.maps.model.CameraPosition
@@ -50,7 +51,6 @@ import com.google.maps.android.compose.rememberUpdatedMarkerState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 @Composable

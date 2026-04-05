@@ -1,5 +1,6 @@
-package com.adriano.demoman.game.ui
+package com.adriano.demoman.game.domain
 
+import android.location.Location
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 
@@ -47,4 +48,16 @@ fun List<LatLng>.orderClockwise(): List<LatLng> {
     val bottomLeft = bottomTwo[1]
 
     return listOf(topLeft, topRight, bottomRight, bottomLeft)
+}
+
+fun LatLng.isWithinRange(other: LatLng, meters: Float = 50f): Boolean {
+    val results = FloatArray(1)
+    Location.distanceBetween(
+        this.latitude,
+        this.longitude,
+        other.latitude,
+        other.longitude,
+        results
+    )
+    return results[0] < meters
 }

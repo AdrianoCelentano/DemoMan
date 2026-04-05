@@ -42,7 +42,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -54,6 +53,7 @@ import com.adriano.demoman.game.domain.CreateGameStep
 import com.adriano.demoman.game.domain.CreateGameSteps
 import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.game.domain.GameViewModel
+import com.adriano.demoman.game.domain.createOuterBounds
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.CameraUpdateFactory.newLatLngBounds
 import com.google.android.gms.maps.model.LatLng
@@ -93,18 +93,16 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
 
         val playground = remember(state.bounds) { createOuterBounds(state.bounds) }
         val cameraPositionState = rememberCameraPositionState()
-        LaunchedEffect(hasLocationPermission) {
-            if (hasLocationPermission) {
-                val location = viewModel.lastLocation()
-                cameraPositionState.animate(
-                    CameraUpdateFactory.newLatLngZoom(
-                        LatLng(
-                            location.latitude,
-                            location.longitude
-                        ), 15f
-                    ), 1000
-                )
-            }
+        LaunchedEffect(Unit) {
+            val location = viewModel.lastLocation()
+            cameraPositionState.animate(
+                CameraUpdateFactory.newLatLngZoom(
+                    LatLng(
+                        location.latitude,
+                        location.longitude
+                    ), 15f
+                ), 1000
+            )
         }
         LaunchedEffect(state.bounds.size) {
             if (state.bounds.size == 4) {
@@ -178,7 +176,8 @@ private fun CreateGameMap(
                 viewModel.onEvent(GameEvent.CreateGameMapClick(position))
             }
         ) {
-            val towerBitmap = remember { getResizedBitmapDescriptor(context, R.drawable.tower, 104, 104) }
+            val towerBitmap =
+                remember { getResizedBitmapDescriptor(context, R.drawable.tower, 104, 104) }
             state.towers.forEach { position ->
                 Marker(
                     state = rememberUpdatedMarkerState(position),

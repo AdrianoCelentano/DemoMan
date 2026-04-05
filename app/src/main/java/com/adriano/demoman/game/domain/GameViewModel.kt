@@ -52,32 +52,12 @@ class GameViewModel @Inject constructor(
     private var timerJob: Job? = null
     val gameState = MutableStateFlow(GameViewState())
 
-    private val createGameHandler = CreateGameHandler(
-        gameState = gameState,
-        coroutineScope = viewModelScope,
-        gameApiService = gameApiService,
-        onGameCreated = { game, startTimeStamp ->
-            val remainingTime = calculateRemainingTime(startTimeStamp, game.gameDurationInMinutes)
-            persistSession(game.id!!, game.role, startTimeStamp)
-            gameState.update {
-                it.copy(
-                    step = GameStep.Game,
-                    game = game,
-                )
-            }
-            timer.value = remainingTime
-            triggerVibration()
-        }
-    )
-
     private val activatingTowers = mutableSetOf<Int>()
 
     init {
         gameState
             .onEach { Log.d("VM", "State: $it") }
             .launchIn(viewModelScope)
-
-        restoreSessionIfNeeded()
     }
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
@@ -85,10 +65,10 @@ class GameViewModel @Inject constructor(
         Log.d("VM", "Event: $event")
         when (event) {
             // Menu
-            GameEvent.GoToSetup -> gameState.update { it.copy(step = GameStep.Setup) }
-            GameEvent.GoToCreateGame -> gameState.update { it.copy(step = CreateGameStep()) }
+            GameEvent.GoToSetup,
+            GameEvent.GoToCreateGame,
+            GameEvent.GoToGameList -> menuHandler.handleEvent(event)
             // Game List
-            GameEvent.GoToGameList -> goToGameList()
             is GameEvent.JoinGame -> joinGame(event)
             // Game
             GameEvent.ObserveLocation -> observePlayerLocation()
@@ -97,12 +77,12 @@ class GameViewModel @Inject constructor(
             GameEvent.StartGameTimer -> startGameTimer()
             is GameEvent.ObserveGameState -> observeGameUpdates(event.coroutineScope)
             GameEvent.UpdateMisterXPosition -> updateMisterXPosition()
+            GameEvent.UpdateGame -> viewModelScope.launch { fetchGameState() }
             GameEvent.EndGame -> endGame()
             // Create Game
-            GameEvent.UpdateGame -> viewModelScope.launch { fetchGameState() }
-            GameEvent.CreateGame -> createGameHandler.handleEvent(event)
-            is GameEvent.CreateGameMapClick -> createGameHandler.handleEvent(event)
-            is GameEvent.UpdateCreateGameDetails -> createGameHandler.handleEvent(event)
+            GameEvent.CreateGame,
+            is GameEvent.CreateGameMapClick,
+            is GameEvent.UpdateCreateGameDetails,
             GameEvent.CreateGameBack -> createGameHandler.handleEvent(event)
         }
     }
@@ -111,13 +91,13 @@ class GameViewModel @Inject constructor(
     private fun startGameTimer() {
         if (timerJob != null) return
         timerJob = viewModelScope.launch {
-            var seconds = timer.value ?: calculateRemainingTime(
+            var seconds = timer.value ?: sessionHandler.calculateRemainingTime(
                 gameState.value.game.startTimeStamp,
                 gameState.value.game.gameDurationInMinutes
             )
             while (seconds >= 0 && isActive) {
                 timer.value = seconds
-                savedStateHandle[KEY_REMAINING_TIME] = seconds
+                savedStateHandle[GameSessionHandler.KEY_REMAINING_TIME] = seconds
                 delay(1000)
                 seconds--
             }
@@ -125,13 +105,6 @@ class GameViewModel @Inject constructor(
                 onEvent(GameEvent.EndGame)
             }
         }
-    }
-
-    private fun calculateRemainingTime(startTimeStamp: Long?, durationInMinutes: Long): Long {
-        if (startTimeStamp == null) return durationInMinutes * 60
-        val elapsedMillis = System.currentTimeMillis() - startTimeStamp
-        val elapsedSeconds = elapsedMillis / 1000
-        return (durationInMinutes * 60 - elapsedSeconds).coerceAtLeast(0)
     }
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
@@ -296,7 +269,7 @@ class GameViewModel @Inject constructor(
             gameApiService.endGame(gameState.value.game.id!!)
             timerJob?.cancel()
             timerJob = null
-            clearPersistedSession()
+            sessionHandler.clearPersistedSession()
             activatingTowers.clear()
             gameState.update {
                 it.copy(
@@ -305,15 +278,6 @@ class GameViewModel @Inject constructor(
                 )
             }
             timer.value = null
-        }
-    }
-
-    private fun goToGameList() {
-        viewModelScope.launch {
-            gameState.update { it.copy(step = GameStep.Loading) }
-            val games = gameApiService.loadGames().body()?.map { it.toGameSession() }
-                ?: emptyList()
-            gameState.update { it.copy(step = GameList(games)) }
         }
     }
 
@@ -331,8 +295,11 @@ class GameViewModel @Inject constructor(
                     response.body() ?: throw IllegalStateException("Game must not be null")
                 val game = gameDto.toGameSession()
                 val remainingTime =
-                    calculateRemainingTime(gameDto.startTimeStamp, game.gameDurationInMinutes)
-                persistSession(game.id!!, game.role, gameDto.startTimeStamp)
+                    sessionHandler.calculateRemainingTime(
+                        gameDto.startTimeStamp,
+                        game.gameDurationInMinutes
+                    )
+                sessionHandler.persistSession(game.id!!, game.role, gameDto.startTimeStamp)
                 gameState.update {
                     it.copy(
                         step = GameStep.Game,
@@ -344,90 +311,46 @@ class GameViewModel @Inject constructor(
             } else {
                 // Handle error (e.g., wrong password)
                 // For now, just go back to the list
-                goToGameList()
+                menuHandler.handleEvent(GameEvent.GoToGameList)
             }
         }
     }
 
-    private suspend fun persistSession(gameId: String, team: Team, startTimeStamp: Long?) {
-        // SavedStateHandle — survives process death
-        savedStateHandle[KEY_GAME_ID] = gameId
-        savedStateHandle[KEY_TEAM] = team.name
-        savedStateHandle[KEY_START_TIMESTAMP] = startTimeStamp
-        // DataStore — survives full app kill / device reboot
-        gameSessionRepository.save(gameId, team.name, startTimeStamp)
+    private val sessionHandler = GameSessionHandler(
+        savedStateHandle = savedStateHandle,
+        gameSessionRepository = gameSessionRepository,
+        gameApiService = gameApiService,
+        coroutineScope = viewModelScope,
+        gameState = gameState,
+        timer = timer
+    )
+
+    init {
+        sessionHandler.restoreSessionIfNeeded()
     }
 
-    private suspend fun clearPersistedSession() {
-        savedStateHandle.remove<String>(KEY_GAME_ID)
-        savedStateHandle.remove<String>(KEY_TEAM)
-        savedStateHandle.remove<Long>(KEY_START_TIMESTAMP)
-        gameSessionRepository.clear()
-    }
-
-    /**
-     * On startup, check if a game session was previously saved (survives process death
-     * via [SavedStateHandle], and full app restarts via [GameSessionRepository]).
-     *
-     * Priority: SavedStateHandle (faster, in-memory) → DataStore (disk, survives restarts)
-     */
-    private fun restoreSessionIfNeeded() {
-        // SavedStateHandle survives process death without a network round-trip.
-        val savedGameId: String? = savedStateHandle[KEY_GAME_ID]
-        val savedTeam: String? = savedStateHandle[KEY_TEAM]
-        val savedStartTime: Long? = savedStateHandle[KEY_START_TIMESTAMP]
-
-        if (savedGameId != null && savedTeam != null) {
-            val team = runCatching { Team.valueOf(savedTeam) }.getOrNull() ?: return
-            restoreSession(savedGameId, team, savedStartTime)
-            return
-        }
-
-        // DataStore survives full restarts (e.g. phone reboot, manual swipe-close).
-        viewModelScope.launch {
-            val persisted = gameSessionRepository.load() ?: return@launch
-            val team = runCatching { Team.valueOf(persisted.team) }.getOrNull() ?: return@launch
-            restoreSession(persisted.gameId, team, persisted.startTimeStamp)
-        }
-    }
-
-    private fun restoreSession(gameId: String, team: Team, startTimeStamp: Long?) {
-        viewModelScope.launch {
-            gameState.update { it.copy(step = GameStep.Loading) }
-            try {
-                val gameDto = gameApiService.findGameById(gameId).body()
-                val game = gameDto?.toGameSession()?.copy(role = team)
-                if (game != null) {
-                    val actualStartTime = gameDto.startTimeStamp ?: startTimeStamp
-                    val remainingTime =
-                        calculateRemainingTime(actualStartTime, game.gameDurationInMinutes)
-                    gameState.update {
-                        it.copy(
-                            step = GameStep.Game,
-                            game = game,
-                        )
-                    }
-                    timer.value = remainingTime
-                    Log.d(
-                        "qwer",
-                        "Session restored for gameId=$gameId team=$team remainingTime=$remainingTime"
-                    )
-                } else {
-                    // Game no longer exists on the server — clean up and go to setup.
-                    clearPersistedSession()
-                    gameState.update { it.copy(step = GameStep.Setup) }
-                }
-            } catch (e: Exception) {
-                Log.e("qwer", "Failed to restore session", e)
-                gameState.update { it.copy(step = GameStep.Setup) }
+    private val createGameHandler = CreateGameHandler(
+        gameState = gameState,
+        coroutineScope = viewModelScope,
+        gameApiService = gameApiService,
+        onGameCreated = { game, startTimeStamp ->
+            val remainingTime =
+                sessionHandler.calculateRemainingTime(startTimeStamp, game.gameDurationInMinutes)
+            sessionHandler.persistSession(game.id!!, game.role, startTimeStamp)
+            gameState.update {
+                it.copy(
+                    step = GameStep.Game,
+                    game = game,
+                )
             }
+            timer.value = remainingTime
+            triggerVibration()
         }
-    }
+    )
 
-    companion object {
-        private const val KEY_GAME_ID = "game_id"
-        private const val KEY_TEAM = "team"
-        private const val KEY_START_TIMESTAMP = "start_timestamp"
-        private const val KEY_REMAINING_TIME = "remaining_time"
-    }
+    private val menuHandler = MenuHandler(
+        gameState = gameState,
+        coroutineScope = viewModelScope,
+        gameApiService = gameApiService
+    )
 }

@@ -4,7 +4,6 @@ import com.adriano.demoman.game.data.CreateGameRequestDto
 import com.adriano.demoman.game.data.GameApiService
 import com.adriano.demoman.game.data.LatLngDto
 import com.adriano.demoman.game.data.toGameSession
-import com.adriano.demoman.game.ui.orderClockwise
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import kotlinx.coroutines.CoroutineScope
