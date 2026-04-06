@@ -234,8 +234,8 @@ private fun PlayerSpirit(
         onClick = { true }
     )
 
-    if (game.role == Team.DETECTIVE) {
-        val demoPosition = viewModel.gameState.value.game.lastMisterXPosition ?: return
+    val demoPosition = game.lastMisterXPosition
+    if (game.role == Team.DETECTIVE && demoPosition != null) {
         val demoSprit = remember {
             getResizedBitmapDescriptor(
                 context,

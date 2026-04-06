@@ -18,8 +18,9 @@ data class GameSession(
     val role: Team = Team.DETECTIVE,
     val startTimeStamp: Long? = null,
     val gameDurationInMinutes: Long = 60,
-    val lastMisterXPosition: LatLng? = null
-)
+) {
+    val lastMisterXPosition get() = players.firstOrNull { it.team == Team.MISTER_X }?.position
+}
 
 enum class Team {
     DETECTIVE,
@@ -50,16 +51,17 @@ data class CreateGameStep(
     val bounds: List<LatLng> = emptyList(),
     val towers: List<LatLng> = emptyList()
 ) : GameStep() {
-    val step: CreateGameSteps get() {
-        return when {
-            bounds.size < 4 -> CreateGameSteps.Boundary
-            towers.size < 3 -> CreateGameSteps.Tower
-            else -> CreateGameSteps.Complete
+    val step: CreateGameSteps
+        get() {
+            return when {
+                bounds.size < 4 -> CreateGameSteps.Boundary
+                towers.size < 3 -> CreateGameSteps.Tower
+                else -> CreateGameSteps.Complete
+            }
         }
-    }
 }
 
-enum class CreateGameSteps {Boundary, Tower, Complete}
+enum class CreateGameSteps { Boundary, Tower, Complete }
 
 data class GameList(
     val games: List<GameSession>
@@ -76,11 +78,13 @@ sealed class GameEvent {
     data class ObserveGameState(val coroutineScope: CoroutineScope) : GameEvent()
     object UpdateMisterXPosition : GameEvent()
     data class CreateGameMapClick(val position: LatLng) : GameEvent()
-    data class UpdateCreateGameDetails(val name: String, val pass: String, val duration: Long) : GameEvent()
-    data class ActivateTower(val towerIndex: Int): GameEvent()
+    data class UpdateCreateGameDetails(val name: String, val pass: String, val duration: Long) :
+        GameEvent()
+
+    data class ActivateTower(val towerIndex: Int) : GameEvent()
     data class JoinGame(val gameId: String, val password: String? = null) : GameEvent()
 
-    object UpdateGame: GameEvent()
+    object UpdateGame : GameEvent()
 
     object EndGame : GameEvent() // after all towers are activated or MisterX got caught
     object StartGameTimer : GameEvent()
