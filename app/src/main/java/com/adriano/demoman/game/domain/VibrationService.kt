@@ -7,9 +7,10 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 
-class VibrationService(
-    private @ApplicationContext val context: Context
+class VibrationService @Inject constructor(
+    @ApplicationContext private val context: Context
 ) {
 
     @SuppressLint("MissingPermission")

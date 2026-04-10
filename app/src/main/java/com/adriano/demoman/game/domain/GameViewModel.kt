@@ -21,6 +21,7 @@ import com.adriano.demoman.game.data.UpdatePlayerPositionRequest
 import com.adriano.demoman.game.data.toGameSession
 import com.adriano.demoman.game.domain.handler.CreateGameHandler
 import com.adriano.demoman.game.domain.handler.GameListHandler
+import com.adriano.demoman.game.domain.handler.GameSessionHandler
 import com.adriano.demoman.game.domain.handler.GameSessionStateHandle
 import com.adriano.demoman.game.domain.handler.MenuHandler
 import com.google.android.gms.maps.model.LatLng
@@ -50,26 +51,11 @@ class GameViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    private val DEBUG_ENABLED = false
-    private var timerJob: Job? = null
     val playerPositionFlow: MutableStateFlow<LatLng?> = MutableStateFlow(null)
     val timer: MutableStateFlow<Long?> = MutableStateFlow(null)
     val navigationState = MutableStateFlow<NavigationState>(NavigationState.Setup)
     val gameSessionState = MutableStateFlow(GameSessionState())
     val createGameState = MutableStateFlow(CreateGameStep())
-
-    private val activatingTowers = mutableSetOf<Int>()
-
-    init {
-        viewModelScope.launch {
-            launch {
-                while (isActive) {
-                    runCatching { onEvent(GameEvent.UpdateMisterXPosition) }
-                    delay(5.minutes)
-                }
-            }
-        }
-    }
 
     fun onMenuEvent(event: MenuEvent) {
         menuHandler.handleEvent(event)
@@ -85,38 +71,7 @@ class GameViewModel @Inject constructor(
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     fun onEvent(event: GameEvent) {
-        Log.d("VM", "Event: $event")
-        when (event) {
-            // Game
-            GameEvent.ObserveLocation -> observePlayerLocation()
-            is GameEvent.ActivateTower -> activateTower(event)
-            is GameEvent.PlayerPositionUpdate -> playerPositionUpdate(event)
-            GameEvent.StartGameTimer -> startGameTimer()
-            is GameEvent.ObserveGameState -> observeGameUpdates(event.coroutineScope)
-            GameEvent.UpdateMisterXPosition -> updateMisterXPosition()
-            GameEvent.UpdateGame -> viewModelScope.launch { fetchGameState() }
-            GameEvent.EndGame -> endGame()
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun startGameTimer() {
-        if (timerJob != null) return
-        timerJob = viewModelScope.launch {
-            var seconds = timer.value ?: sessionHandler.calculateRemainingTime(
-                gameSessionState.value.game.startTimeStamp,
-                gameSessionState.value.game.gameDurationInMinutes
-            )
-            while (seconds >= 0 && isActive) {
-                timer.value = seconds
-                savedStateHandle[GameSessionStateHandle.KEY_REMAINING_TIME] = seconds
-                delay(1000)
-                seconds--
-            }
-            if (seconds < 0) {
-                onEvent(GameEvent.EndGame)
-            }
-        }
+        gameSessionHandler.handleEvent(event)
     }
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
@@ -124,137 +79,9 @@ class GameViewModel @Inject constructor(
         return locationProvider.lastLocation()
     }
 
-    private fun activateTower(event: GameEvent.ActivateTower) {
-        if (activatingTowers.contains(event.towerIndex)) return
-        activatingTowers.add(event.towerIndex)
-
-        Log.d("qwer", "activate tower ${event.towerIndex}")
-        val game = gameSessionState.value.game
-        val request = ActivateTowerRequestDto(game.id!!, event.towerIndex)
-        viewModelScope.launch {
-            try {
-                val response = gameApiService.activateTower(request)
-                if (response.isSuccessful) {
-                    val updatdedGame = response.body()!!.toGameSession()
-                    vibrationService.triggerVibration()
-                    Log.d("qwer", "new game towers ${updatdedGame.towers}")
-                    gameSessionState.update { it.copy(game = updatdedGame) }
-                } else {
-                    activatingTowers.remove(event.towerIndex)
-                }
-            } catch (e: Exception) {
-                Log.e("VM", "Failed to activate tower", e)
-                activatingTowers.remove(event.towerIndex)
-            }
-        }
-    }
-
-    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
-    private fun observePlayerLocation() {
-        if (DEBUG_ENABLED && gameSessionState.value.game.role == Team.MISTER_X) {
-            viewModelScope.launch {
-                val lastPosition = lastLocation()
-                val towers = listOf(
-                    LatLng(
-                        lastPosition.latitude,
-                        lastPosition.longitude
-                    )
-                ) + gameSessionState.value.game.towers.map { it.position }
-                simulateWalkingRoute(towers, speedKmh = 15f)
-                    .collect { onEvent(GameEvent.PlayerPositionUpdate(it)) }
-            }
-        } else {
-            locationProvider.locationsFlow()
-                .onEach { onEvent(GameEvent.PlayerPositionUpdate(it)) }
-                .launchIn(viewModelScope)
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun playerPositionUpdate(event: GameEvent.PlayerPositionUpdate) {
-        val playerPosition = event.position
-        val game = gameSessionState.value.game
-        playerPositionFlow.value = playerPosition
-        if (game.role == Team.DETECTIVE) return
-        game.towers.forEachIndexed { index, tower ->
-            if (tower.position.isWithinRange(playerPosition) && tower.isActive.not() && !activatingTowers.contains(
-                    index
-                )
-            ) {
-                onEvent(GameEvent.ActivateTower(index))
-            }
-        }
-
-        if (DEBUG_ENABLED) {
-            gameSessionState.update {
-                it.copy(
-                    debugState = calculateDebugState(
-                        playerPosition,
-                        game.towers
-                    )
-                )
-            }
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun observeGameUpdates(viewLifecycleScope: CoroutineScope) {
-        if (gameSessionState.value.game.role == Team.MISTER_X) return
-        viewLifecycleScope.launch {
-            launch {
-                while (isActive) {
-                    runCatching { onEvent(GameEvent.UpdateGame) }
-                    delay(13.seconds)
-                }
-            }
-        }
-    }
-
-    fun updateMisterXPosition() {
-        val game = gameSessionState.value.game
-        if (game.role == Team.DETECTIVE) return
-        val demoMan = game.players.first { it.team == Team.MISTER_X }
-        viewModelScope.launch {
-            val latLng = playerPositionFlow.value ?: return@launch
-            gameApiService.updatePlayerPosition(
-                UpdatePlayerPositionRequest(
-                    game.id!!,
-                    demoMan.userId,
-                    latLng
-                )
-            )
-        }
-    }
-
-    private suspend fun fetchGameState() {
-        val gameDto =
-            gameApiService.findGameById(gameSessionState.value.game.id!!).body()!!
-        val game = gameDto.toGameSession().copy(
-            role = Team.DETECTIVE,
-        )
-        if (gameSessionState.value.game.towers.count { it.isActive } != game.towers.count { it.isActive }) {
-            vibrationService.triggerVibration()
-        }
-        gameSessionState.update { it.copy(game = game) }
-    }
-
-    private fun endGame() {
-        viewModelScope.launch {
-            navigationState.update { NavigationState.Loading }
-            gameApiService.endGame(gameSessionState.value.game.id!!)
-            timerJob?.cancel()
-            timerJob = null
-            sessionHandler.clearPersistedSession()
-            activatingTowers.clear()
-            navigationState.update { NavigationState.Setup }
-            gameSessionState.update { GameSessionState() }
-            timer.value = null
-        }
-    }
 
 
-
-    private val sessionHandler = GameSessionStateHandle(
+    private val sessionStateHandle = GameSessionStateHandle(
         savedStateHandle = savedStateHandle,
         gameSessionRepository = gameSessionRepository,
         gameApiService = gameApiService,
@@ -264,8 +91,21 @@ class GameViewModel @Inject constructor(
         timer = timer
     )
 
+    private val gameSessionHandler = GameSessionHandler(
+        locationProvider = locationProvider,
+        gameApiService = gameApiService,
+        vibrationService = vibrationService,
+        coroutineScope = viewModelScope,
+        gameSessionState = gameSessionState,
+        playerPositionFlow = playerPositionFlow,
+        navigationState = navigationState,
+        timer = timer,
+        sessionStateHandle = sessionStateHandle,
+        savedStateHandle = savedStateHandle
+    )
+
     init {
-        sessionHandler.restoreSessionIfNeeded()
+        sessionStateHandle.restoreSessionIfNeeded()
     }
 
     private val createGameHandler = CreateGameHandler(
@@ -275,8 +115,8 @@ class GameViewModel @Inject constructor(
         gameApiService = gameApiService,
         onGameCreated = { game, startTimeStamp ->
             val remainingTime =
-                sessionHandler.calculateRemainingTime(startTimeStamp, game.gameDurationInMinutes)
-            sessionHandler.persistSession(game.id!!, game.role, startTimeStamp)
+                sessionStateHandle.calculateRemainingTime(startTimeStamp, game.gameDurationInMinutes)
+            sessionStateHandle.persistSession(game.id!!, game.role, startTimeStamp)
             navigationState.update { NavigationState.Game }
             gameSessionState.update { it.copy(game = game) }
             timer.value = remainingTime
@@ -296,7 +136,7 @@ class GameViewModel @Inject constructor(
         timer = timer,
         coroutineScope = viewModelScope,
         gameApiService = gameApiService,
-        sessionHandler = sessionHandler,
+        sessionHandler = sessionStateHandle,
         onTriggerVibration = { vibrationService.triggerVibration() }
     )
 }
