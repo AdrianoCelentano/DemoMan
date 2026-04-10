@@ -25,24 +25,68 @@ import com.adriano.demoman.R
 import com.adriano.demoman.game.domain.NavigationState
 import com.adriano.demoman.game.domain.GameViewModel
 import com.adriano.demoman.game.domain.GameListEvent
+import androidx.compose.runtime.LaunchedEffect
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.adriano.demoman.game.domain.handler.NavigationEvent
+import com.adriano.demoman.game.domain.handler.LocalNavigationService
 
 @Composable
 fun GameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewModel()) {
-    val navState = viewModel.navigationState.collectAsState().value
+    val navController = rememberNavController()
     val timer = viewModel.timer.collectAsState().value
-    when (navState) {
-        is NavigationState.GameList -> GameListScreen(navState.games, viewModel::onGameListEvent, { viewModel.navigateTo(NavigationState.Setup) }, innerPadding)
-        NavigationState.Game -> {
-            val gameSessionState = viewModel.gameSessionState.collectAsState().value
-            GameMapScreen(innerPadding, viewModel::onEvent, gameSessionState.game, timer, gameSessionState.debugState)
+    val navigationService = LocalNavigationService.current
+
+    LaunchedEffect(Unit) {
+        navigationService.navigationEvents.collect { event ->
+            when (event) {
+                is NavigationEvent.NavigateTo -> {
+                    navController.navigate(event.state)
+                }
+                NavigationEvent.NavigateBack -> {
+                    navController.popBackStack()
+                }
+            }
         }
-        NavigationState.Loading -> LoadingScreen()
-        NavigationState.Setup -> SetupScreen(
-            onGoToCreateGame = { viewModel.navigateTo(NavigationState.CreateGame) },
-            onGoToGameList = { viewModel.onGameListEvent(GameListEvent.GoToGameList) },
-            innerPadding = innerPadding
-        )
-        NavigationState.CreateGame -> CreateGameScreen(innerPadding)
+    }
+
+    NavHost(
+        navController = navController,
+        startDestination = NavigationState.Setup as NavigationState
+    ) {
+        composable<NavigationState.Setup> {
+            SetupScreen(
+                onGoToCreateGame = { navigationService.navigateTo(NavigationState.CreateGame) },
+                onGoToGameList = { viewModel.onGameListEvent(GameListEvent.GoToGameList) },
+                innerPadding = innerPadding
+            )
+        }
+        composable<NavigationState.Loading> {
+            LoadingScreen()
+        }
+        composable<NavigationState.CreateGame> {
+            CreateGameScreen(innerPadding)
+        }
+        composable<NavigationState.GameList> {
+            val games = viewModel.gameListState.collectAsState().value
+            GameListScreen(
+                games = games,
+                onEvent = viewModel::onGameListEvent,
+                onBack = { navController.popBackStack() },
+                innerPadding = innerPadding
+            )
+        }
+        composable<NavigationState.Game> {
+            val gameSessionState = viewModel.gameSessionState.collectAsState().value
+            GameMapScreen(
+                innerPadding,
+                viewModel::onEvent,
+                gameSessionState.game,
+                timer,
+                gameSessionState.debugState
+            )
+        }
     }
 }
 

@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 class GameListHandler(
     private val navigationService: NavigationService,
     private val gameSessionState: MutableStateFlow<GameSessionState>,
+    private val gameListState: MutableStateFlow<List<GameSession>>,
     private val timer: MutableStateFlow<Long?>,
     private val coroutineScope: CoroutineScope,
     private val gameApiService: GameApiService,
@@ -34,7 +35,8 @@ class GameListHandler(
             navigationService.navigateTo(NavigationState.Loading)
             val games = gameApiService.loadGames().body()?.map { it.toGameSession() }
                 ?: emptyList()
-            navigationService.navigateTo(NavigationState.GameList(games))
+            gameListState.value = games
+            navigationService.navigateTo(NavigationState.GameList)
         }
     }
 

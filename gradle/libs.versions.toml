@@ -19,6 +19,8 @@ playServicesMaps = "20.0.0"
 okhttp = "4.12.0"
 loggingInterceptor = "5.2.1"
 datastore = "1.1.4"
+navigationCompose = "2.8.7"
+kotlinxSerializationJson = "1.7.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -49,6 +51,8 @@ maps-compose = { group = "com.google.maps.android", name = "maps-compose", versi
 play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
 logging-interceptor = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "loggingInterceptor" }
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -56,3 +60,4 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version = "2.0.21-1.0.27" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

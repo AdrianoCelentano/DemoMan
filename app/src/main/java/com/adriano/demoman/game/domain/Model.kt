@@ -3,6 +3,7 @@ package com.adriano.demoman.game.domain
 import com.adriano.demoman.game.domain.debug.DebugViewState
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.serialization.Serializable
 
 data class GameSessionState(
     val game: GameSession = GameSession(),
@@ -38,12 +39,18 @@ data class Player(
     val position: LatLng
 )
 
+@Serializable
 sealed class NavigationState {
-    object Loading : NavigationState()
-    object Setup : NavigationState()
-    object Game : NavigationState()
-    object CreateGame : NavigationState()
-    data class GameList(val games: List<GameSession>) : NavigationState()
+    @Serializable
+    data object Loading : NavigationState()
+    @Serializable
+    data object Setup : NavigationState()
+    @Serializable
+    data object Game : NavigationState()
+    @Serializable
+    data object CreateGame : NavigationState()
+    @Serializable
+    data object GameList : NavigationState()
 }
 
 data class CreateGameStep(

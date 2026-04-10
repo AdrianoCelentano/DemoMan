@@ -38,15 +38,10 @@ class GameViewModel @Inject constructor(
 
     val playerPositionFlow: MutableStateFlow<LatLng?> = MutableStateFlow(null)
     val timer: MutableStateFlow<Long?> = MutableStateFlow(null)
-    
-    val navigationState = navigationService.navigationState
-    
+
     val gameSessionState = MutableStateFlow(GameSessionState())
     val createGameState = MutableStateFlow(CreateGameStep())
-
-    fun navigateTo(state: NavigationState) {
-        navigationService.navigateTo(state)
-    }
+    val gameListState = MutableStateFlow<List<GameSession>>(emptyList())
 
     fun onGameListEvent(event: GameListEvent) {
         gameListHandler.handleEvent(event)
@@ -114,6 +109,7 @@ class GameViewModel @Inject constructor(
     private val gameListHandler = GameListHandler(
         navigationService = navigationService,
         gameSessionState = gameSessionState,
+        gameListState = gameListState,
         timer = timer,
         coroutineScope = viewModelScope,
         gameApiService = gameApiService,
