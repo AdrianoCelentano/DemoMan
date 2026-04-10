@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class GameSessionHandler(
+class GameSessionStateHandle(
     private val savedStateHandle: SavedStateHandle,
     private val gameSessionRepository: GameSessionRepository,
     private val gameApiService: GameApiService,

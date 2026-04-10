@@ -51,7 +51,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.adriano.demoman.R
 import com.adriano.demoman.game.domain.CreateGameStep
 import com.adriano.demoman.game.domain.CreateGameSteps
-import com.adriano.demoman.game.domain.GameEvent
+import com.adriano.demoman.game.domain.CreateGameEvent
 import com.adriano.demoman.game.domain.GameViewModel
 import com.adriano.demoman.game.domain.createOuterBounds
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -74,7 +74,7 @@ fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hil
 
     val state = viewModel.createGameState.collectAsState().value
 
-    BackHandler { viewModel.onEvent(GameEvent.CreateGameBack) }
+    BackHandler { viewModel.onCreateGameEvent(CreateGameEvent.CreateGameBack) }
 
     var permissionRequestCount by remember { mutableIntStateOf(0) }
     val hasLocationPermission = hasLocationPermission(permissionRequestCount)
@@ -172,7 +172,7 @@ private fun CreateGameMap(
                 zoomControlsEnabled = isBoundaryStep
             ),
             onMapClick = { position ->
-                viewModel.onEvent(GameEvent.CreateGameMapClick(position))
+                viewModel.onCreateGameEvent(CreateGameEvent.CreateGameMapClick(position))
             }
         ) {
             val towerBitmap =
@@ -183,7 +183,7 @@ private fun CreateGameMap(
                     anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.8f),
                     icon = towerBitmap,
                     onClick = { marker ->
-                        viewModel.onEvent(GameEvent.CreateGameMapClick(marker.position))
+                        viewModel.onCreateGameEvent(CreateGameEvent.CreateGameMapClick(marker.position))
                         true
                     }
                 )
@@ -209,7 +209,7 @@ private fun CreateGameMap(
                     .align(Alignment.BottomCenter)
                     .padding(56.dp),
                 isPrimary = true,
-                onClick = { viewModel.onEvent(GameEvent.CreateGame) }
+                onClick = { viewModel.onCreateGameEvent(CreateGameEvent.CreateGame) }
             )
         }
 
@@ -241,7 +241,7 @@ private fun CreateGameMap(
                 initialDuration = state.gameDurationInMinutes,
                 onDismiss = { showDialog = false },
                 onSave = { name, pass, duration ->
-                    viewModel.onEvent(GameEvent.UpdateCreateGameDetails(name, pass, duration))
+                    viewModel.onCreateGameEvent(CreateGameEvent.UpdateCreateGameDetails(name, pass, duration))
                     showDialog = false
                 }
             )

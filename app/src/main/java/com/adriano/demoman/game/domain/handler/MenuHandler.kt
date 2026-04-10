@@ -2,7 +2,7 @@ package com.adriano.demoman.game.domain.handler
 
 import com.adriano.demoman.game.data.GameApiService
 import com.adriano.demoman.game.data.toGameSession
-import com.adriano.demoman.game.domain.GameEvent
+import com.adriano.demoman.game.domain.MenuEvent
 import com.adriano.demoman.game.domain.NavigationState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,11 +14,10 @@ class MenuHandler(
     private val coroutineScope: CoroutineScope,
     private val gameApiService: GameApiService,
 ) {
-    fun handleEvent(event: GameEvent) {
+    fun handleEvent(event: MenuEvent) {
         when (event) {
-            GameEvent.GoToSetup -> navigationState.update { NavigationState.Setup }
-            GameEvent.GoToCreateGame -> navigationState.update { NavigationState.CreateGame }
-            else -> {}
+            MenuEvent.GoToSetup -> navigationState.update { NavigationState.Setup }
+            MenuEvent.GoToCreateGame -> navigationState.update { NavigationState.CreateGame }
         }
     }
 }

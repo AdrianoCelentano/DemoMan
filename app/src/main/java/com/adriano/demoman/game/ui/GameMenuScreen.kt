@@ -22,29 +22,33 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.adriano.demoman.R
-import com.adriano.demoman.game.domain.GameEvent
+import com.adriano.demoman.game.domain.MenuEvent
 import com.adriano.demoman.game.domain.NavigationState
 import com.adriano.demoman.game.domain.GameViewModel
+import com.adriano.demoman.game.domain.GameListEvent
 
 @Composable
 fun GameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewModel()) {
     val navState = viewModel.navigationState.collectAsState().value
     val timer = viewModel.timer.collectAsState().value
-    val onEvent = viewModel::onEvent
     when (navState) {
-        is NavigationState.GameList -> GameListScreen(navState.games, onEvent, innerPadding)
+        is NavigationState.GameList -> GameListScreen(navState.games, viewModel::onGameListEvent, { viewModel.onMenuEvent(MenuEvent.GoToSetup) }, innerPadding)
         NavigationState.Game -> {
             val gameSessionState = viewModel.gameSessionState.collectAsState().value
-            GameMapScreen(innerPadding, onEvent, gameSessionState.game, timer, gameSessionState.debugState)
+            GameMapScreen(innerPadding, viewModel::onEvent, gameSessionState.game, timer, gameSessionState.debugState)
         }
         NavigationState.Loading -> LoadingScreen()
-        NavigationState.Setup -> SetupScreen(onEvent, innerPadding)
+        NavigationState.Setup -> SetupScreen(
+            onGoToCreateGame = { viewModel.onMenuEvent(MenuEvent.GoToCreateGame) },
+            onGoToGameList = { viewModel.onGameListEvent(GameListEvent.GoToGameList) },
+            innerPadding = innerPadding
+        )
         NavigationState.CreateGame -> CreateGameScreen(innerPadding)
     }
 }
 
 @Composable
-fun SetupScreen(onEvent: (GameEvent) -> Unit, innerPadding: PaddingValues) {
+fun SetupScreen(onGoToCreateGame: () -> Unit, onGoToGameList: () -> Unit, innerPadding: PaddingValues) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -113,7 +117,7 @@ fun SetupScreen(onEvent: (GameEvent) -> Unit, innerPadding: PaddingValues) {
             // Buttons
             MainActionButton(
                 text = "NEUES SPIEL",
-                onClick = { onEvent(GameEvent.GoToCreateGame) },
+                onClick = onGoToCreateGame,
                 isPrimary = true
             )
 
@@ -121,7 +125,7 @@ fun SetupScreen(onEvent: (GameEvent) -> Unit, innerPadding: PaddingValues) {
 
             MainActionButton(
                 text = "SPIEL BEITRETEN",
-                onClick = { onEvent(GameEvent.GoToGameList) },
+                onClick = onGoToGameList,
                 isPrimary = false
             )
         }

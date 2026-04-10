@@ -28,11 +28,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.adriano.demoman.game.domain.GameEvent
+import com.adriano.demoman.game.domain.GameListEvent
 import com.adriano.demoman.game.domain.GameSession
 import com.adriano.demoman.game.domain.Player
 import com.adriano.demoman.game.domain.Team
 import com.adriano.demoman.game.domain.Tower
+import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.ui.theme.DemoManTheme
 import com.google.android.gms.maps.model.LatLng
 
@@ -40,10 +41,11 @@ import com.google.android.gms.maps.model.LatLng
 @Composable
 fun GameListScreen(
     games: List<GameSession>,
-    onEvent: (GameEvent) -> Unit,
+    onEvent: (GameListEvent) -> Unit,
+    onBack: () -> Unit,
     innerPadding: PaddingValues
 ) {
-    BackHandler { onEvent(GameEvent.GoToSetup) }
+    BackHandler { onBack() }
 
     var selectedGameId by remember { mutableStateOf<String?>(null) }
 
@@ -52,13 +54,13 @@ fun GameListScreen(
         if (selectedGame?.password?.isNotBlank() ?: false) {
             JoinGamePasswordDialog(
                 onConfirm = { password ->
-                    selectedGameId?.let { onEvent(GameEvent.JoinGame(it, password)) }
+                    selectedGameId?.let { onEvent(GameListEvent.JoinGame(it, password)) }
                     selectedGameId = null
                 },
                 onDismiss = { selectedGameId = null }
             )
         } else {
-            selectedGameId?.let { onEvent(GameEvent.JoinGame(it, null)) }
+            selectedGameId?.let { onEvent(GameListEvent.JoinGame(it, null)) }
         }
     }
 
@@ -102,7 +104,7 @@ fun GameListScreen(
                 .padding(contentPadding)
         ) {
             if (games.isEmpty()) {
-                EmptyMissionState(onEvent)
+                EmptyMissionState(onBack)
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -259,7 +261,7 @@ fun MissionStatChip(icon: ImageVector, label: String) {
 }
 
 @Composable
-fun EmptyMissionState(onEvent: (GameEvent) -> Unit) {
+fun EmptyMissionState(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -307,7 +309,7 @@ fun EmptyMissionState(onEvent: (GameEvent) -> Unit) {
         Spacer(modifier = Modifier.height(48.dp))
 
         Button(
-            onClick = { onEvent(GameEvent.GoToSetup) },
+            onClick = onBack,
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary
             ),

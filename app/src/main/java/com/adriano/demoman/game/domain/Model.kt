@@ -65,25 +65,30 @@ data class CreateGameStep(
 enum class CreateGameSteps { Boundary, Tower, Complete }
 
 
+sealed class MenuEvent {
+    object GoToSetup : MenuEvent()
+    object GoToCreateGame : MenuEvent()
+}
+
+sealed class GameListEvent {
+    object GoToGameList : GameListEvent()
+    data class JoinGame(val gameId: String, val password: String? = null) : GameListEvent()
+}
+
+sealed class CreateGameEvent {
+    object CreateGame : CreateGameEvent()
+    data class CreateGameMapClick(val position: LatLng) : CreateGameEvent()
+    data class UpdateCreateGameDetails(val name: String, val pass: String, val duration: Long) : CreateGameEvent()
+    object CreateGameBack : CreateGameEvent()
+}
+
 sealed class GameEvent {
-    object GoToGameList : GameEvent()
-    object CreateGameBack : GameEvent()
     object ObserveLocation : GameEvent()
-    object GoToSetup : GameEvent()
     data class PlayerPositionUpdate(val position: LatLng) : GameEvent()
-    object GoToCreateGame : GameEvent()
-    object CreateGame : GameEvent()
     data class ObserveGameState(val coroutineScope: CoroutineScope) : GameEvent()
     object UpdateMisterXPosition : GameEvent()
-    data class CreateGameMapClick(val position: LatLng) : GameEvent()
-    data class UpdateCreateGameDetails(val name: String, val pass: String, val duration: Long) :
-        GameEvent()
-
     data class ActivateTower(val towerIndex: Int) : GameEvent()
-    data class JoinGame(val gameId: String, val password: String? = null) : GameEvent()
-
     object UpdateGame : GameEvent()
-
     object EndGame : GameEvent() // after all towers are activated or MisterX got caught
     object StartGameTimer : GameEvent()
 }

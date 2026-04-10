@@ -3,7 +3,7 @@ package com.adriano.demoman.game.domain.handler
 import com.adriano.demoman.game.data.GameApiService
 import com.adriano.demoman.game.data.JoinGameRequestDto
 import com.adriano.demoman.game.data.toGameSession
-import com.adriano.demoman.game.domain.GameEvent
+import com.adriano.demoman.game.domain.GameListEvent
 import com.adriano.demoman.game.domain.GameSessionState
 import com.adriano.demoman.game.domain.NavigationState
 import kotlinx.coroutines.CoroutineScope
@@ -17,15 +17,14 @@ class GameListHandler(
     private val timer: MutableStateFlow<Long?>,
     private val coroutineScope: CoroutineScope,
     private val gameApiService: GameApiService,
-    private val sessionHandler: GameSessionHandler,
+    private val sessionHandler: GameSessionStateHandle,
     private val onTriggerVibration: () -> Unit
 ) {
 
-    fun handleEvent(event: GameEvent) {
+    fun handleEvent(event: GameListEvent) {
         when (event) {
-            GameEvent.GoToGameList -> goToGameList()
-            is GameEvent.JoinGame -> joinGame(event)
-            else -> {}
+            GameListEvent.GoToGameList -> goToGameList()
+            is GameListEvent.JoinGame -> joinGame(event)
         }
     }
 
@@ -38,7 +37,7 @@ class GameListHandler(
         }
     }
 
-    private fun joinGame(event: GameEvent.JoinGame) {
+    private fun joinGame(event: GameListEvent.JoinGame) {
         coroutineScope.launch {
             navigationState.update { NavigationState.Loading }
             val response = gameApiService.joinGame(
@@ -64,7 +63,7 @@ class GameListHandler(
             } else {
                 // Handle error (e.g., wrong password)
                 // For now, just go back to the list
-                handleEvent(GameEvent.GoToGameList)
+                handleEvent(GameListEvent.GoToGameList)
             }
         }
     }

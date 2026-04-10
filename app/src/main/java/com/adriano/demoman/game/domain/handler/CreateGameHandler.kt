@@ -6,7 +6,7 @@ import com.adriano.demoman.game.data.LatLngDto
 import com.adriano.demoman.game.data.toGameSession
 import com.adriano.demoman.game.domain.CreateGameStep
 import com.adriano.demoman.game.domain.CreateGameSteps
-import com.adriano.demoman.game.domain.GameEvent
+import com.adriano.demoman.game.domain.CreateGameEvent
 import com.adriano.demoman.game.domain.GameSession
 import com.adriano.demoman.game.domain.NavigationState
 import com.adriano.demoman.game.domain.orderClockwise
@@ -25,13 +25,12 @@ class CreateGameHandler(
     private val onGameCreated: suspend (GameSession, Long) -> Unit
 ) {
 
-    fun handleEvent(event: GameEvent) {
+    fun handleEvent(event: CreateGameEvent) {
         when (event) {
-            GameEvent.CreateGame -> createGame()
-            is GameEvent.CreateGameMapClick -> createGameMapClick(event.position)
-            is GameEvent.UpdateCreateGameDetails -> updateCreateGameDetails(event)
-            GameEvent.CreateGameBack -> createGameBack()
-            else -> {}
+            CreateGameEvent.CreateGame -> createGame()
+            is CreateGameEvent.CreateGameMapClick -> createGameMapClick(event.position)
+            is CreateGameEvent.UpdateCreateGameDetails -> updateCreateGameDetails(event)
+            CreateGameEvent.CreateGameBack -> createGameBack()
         }
     }
 
@@ -48,7 +47,7 @@ class CreateGameHandler(
         createGameState.update { it.copy(bounds = emptyList()) }
     }
 
-    private fun updateCreateGameDetails(event: GameEvent.UpdateCreateGameDetails) {
+    private fun updateCreateGameDetails(event: CreateGameEvent.UpdateCreateGameDetails) {
         createGameState.update { it.copy(
             missionName = event.name,
             password = event.pass,
