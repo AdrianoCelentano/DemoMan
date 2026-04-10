@@ -18,17 +18,7 @@ class MenuHandler(
         when (event) {
             GameEvent.GoToSetup -> navigationState.update { NavigationState.Setup }
             GameEvent.GoToCreateGame -> navigationState.update { NavigationState.CreateGame }
-            GameEvent.GoToGameList -> goToGameList()
             else -> {}
-        }
-    }
-
-    private fun goToGameList() {
-        coroutineScope.launch {
-            navigationState.update { NavigationState.Loading }
-            val games = gameApiService.loadGames().body()?.map { it.toGameSession() }
-                ?: emptyList()
-            navigationState.update { NavigationState.GameList(games) }
         }
     }
 }

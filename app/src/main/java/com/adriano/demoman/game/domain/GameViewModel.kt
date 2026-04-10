@@ -21,6 +21,7 @@ import com.adriano.demoman.game.data.LocationProvider
 import com.adriano.demoman.game.data.UpdatePlayerPositionRequest
 import com.adriano.demoman.game.data.toGameSession
 import com.adriano.demoman.game.domain.handler.CreateGameHandler
+import com.adriano.demoman.game.domain.handler.GameListHandler
 import com.adriano.demoman.game.domain.handler.GameSessionHandler
 import com.adriano.demoman.game.domain.handler.MenuHandler
 import com.google.android.gms.maps.model.LatLng
@@ -76,10 +77,10 @@ class GameViewModel @Inject constructor(
         when (event) {
             // Menu
             GameEvent.GoToSetup,
-            GameEvent.GoToCreateGame,
-            GameEvent.GoToGameList -> menuHandler.handleEvent(event)
+            GameEvent.GoToCreateGame -> menuHandler.handleEvent(event)
             // Game List
-            is GameEvent.JoinGame -> joinGame(event)
+            GameEvent.GoToGameList,
+            is GameEvent.JoinGame -> gameListHandler.handleEvent(event)
             // Game
             GameEvent.ObserveLocation -> observePlayerLocation()
             is GameEvent.ActivateTower -> activateTower(event)
@@ -282,36 +283,7 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    private fun joinGame(event: GameEvent.JoinGame) {
-        viewModelScope.launch {
-            navigationState.update { NavigationState.Loading }
-            val response = gameApiService.joinGame(
-                JoinGameRequestDto(
-                    gameId = event.gameId,
-                    password = event.password
-                )
-            )
-            if (response.isSuccessful) {
-                val gameDto =
-                    response.body() ?: throw IllegalStateException("Game must not be null")
-                val game = gameDto.toGameSession()
-                val remainingTime =
-                    sessionHandler.calculateRemainingTime(
-                        gameDto.startTimeStamp,
-                        game.gameDurationInMinutes
-                    )
-                sessionHandler.persistSession(game.id!!, game.role, gameDto.startTimeStamp)
-                navigationState.update { NavigationState.Game }
-                gameSessionState.update { it.copy(game = game) }
-                timer.value = remainingTime
-                triggerVibration()
-            } else {
-                // Handle error (e.g., wrong password)
-                // For now, just go back to the list
-                menuHandler.handleEvent(GameEvent.GoToGameList)
-            }
-        }
-    }
+
 
     private val sessionHandler = GameSessionHandler(
         savedStateHandle = savedStateHandle,
@@ -347,5 +319,15 @@ class GameViewModel @Inject constructor(
         navigationState = navigationState,
         coroutineScope = viewModelScope,
         gameApiService = gameApiService
+    )
+
+    private val gameListHandler = GameListHandler(
+        navigationState = navigationState,
+        gameSessionState = gameSessionState,
+        timer = timer,
+        coroutineScope = viewModelScope,
+        gameApiService = gameApiService,
+        sessionHandler = sessionHandler,
+        onTriggerVibration = { triggerVibration() }
     )
 }
