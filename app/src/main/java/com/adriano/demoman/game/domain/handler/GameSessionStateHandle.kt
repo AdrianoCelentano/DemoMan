@@ -8,6 +8,7 @@ import com.adriano.demoman.game.data.toGameSession
 import com.adriano.demoman.game.domain.GameSessionState
 import com.adriano.demoman.game.domain.NavigationState
 import com.adriano.demoman.game.domain.Team
+import com.adriano.demoman.game.domain.time.calculateRemainingTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -19,7 +20,7 @@ class GameSessionStateHandle(
     private val gameApiService: GameApiService,
     private val coroutineScope: CoroutineScope,
     private val gameSessionState: MutableStateFlow<GameSessionState>,
-    private val navigationState: MutableStateFlow<NavigationState>,
+    private val navigationService: NavigationService,
     private val timer: MutableStateFlow<Long?>,
 ) {
     suspend fun persistSession(gameId: String, team: Team, startTimeStamp: Long?) {
@@ -66,7 +67,7 @@ class GameSessionStateHandle(
 
     private fun restoreSession(gameId: String, team: Team, startTimeStamp: Long?) {
         coroutineScope.launch {
-            navigationState.update { NavigationState.Loading }
+            navigationService.navigateTo(NavigationState.Loading)
             try {
                 val gameDto = gameApiService.findGameById(gameId).body()
                 val game = gameDto?.toGameSession()?.copy(role = team)
@@ -74,7 +75,7 @@ class GameSessionStateHandle(
                     val actualStartTime = gameDto.startTimeStamp ?: startTimeStamp
                     val remainingTime =
                         calculateRemainingTime(actualStartTime, game.gameDurationInMinutes)
-                    navigationState.update { NavigationState.Game }
+                    navigationService.navigateTo(NavigationState.Game)
                     gameSessionState.update { it.copy(game = game) }
                     timer.value = remainingTime
                     Log.d(
@@ -84,20 +85,13 @@ class GameSessionStateHandle(
                 } else {
                     // Game no longer exists on the server — clean up and go to setup.
                     clearPersistedSession()
-                    navigationState.update { NavigationState.Setup }
+                    navigationService.navigateTo(NavigationState.Setup)
                 }
             } catch (e: Exception) {
                 Log.e("qwer", "Failed to restore session", e)
-                navigationState.update { NavigationState.Setup }
+                navigationService.navigateTo(NavigationState.Setup)
             }
         }
-    }
-
-    fun calculateRemainingTime(startTimeStamp: Long?, durationInMinutes: Long): Long {
-        if (startTimeStamp == null) return durationInMinutes * 60
-        val elapsedMillis = System.currentTimeMillis() - startTimeStamp
-        val elapsedSeconds = elapsedMillis / 1000
-        return (durationInMinutes * 60 - elapsedSeconds).coerceAtLeast(0)
     }
 
     companion object {

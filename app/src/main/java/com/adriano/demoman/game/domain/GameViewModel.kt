@@ -23,7 +23,9 @@ import com.adriano.demoman.game.domain.handler.CreateGameHandler
 import com.adriano.demoman.game.domain.handler.GameListHandler
 import com.adriano.demoman.game.domain.handler.GameSessionHandler
 import com.adriano.demoman.game.domain.handler.GameSessionStateHandle
-import com.adriano.demoman.game.domain.handler.MenuHandler
+import com.adriano.demoman.game.domain.handler.NavigationService
+import com.adriano.demoman.game.domain.time.calculateRemainingTime
+import com.adriano.demoman.game.domain.vibration.VibrationService
 import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -49,16 +51,19 @@ class GameViewModel @Inject constructor(
     private val gameSessionRepository: GameSessionRepository,
     private val vibrationService: VibrationService,
     private val savedStateHandle: SavedStateHandle,
+    private val navigationService: NavigationService,
 ) : ViewModel() {
 
     val playerPositionFlow: MutableStateFlow<LatLng?> = MutableStateFlow(null)
     val timer: MutableStateFlow<Long?> = MutableStateFlow(null)
-    val navigationState = MutableStateFlow<NavigationState>(NavigationState.Setup)
+    
+    val navigationState = navigationService.navigationState
+    
     val gameSessionState = MutableStateFlow(GameSessionState())
     val createGameState = MutableStateFlow(CreateGameStep())
 
-    fun onMenuEvent(event: MenuEvent) {
-        menuHandler.handleEvent(event)
+    fun navigateTo(state: NavigationState) {
+        navigationService.navigateTo(state)
     }
 
     fun onGameListEvent(event: GameListEvent) {
@@ -87,7 +92,7 @@ class GameViewModel @Inject constructor(
         gameApiService = gameApiService,
         coroutineScope = viewModelScope,
         gameSessionState = gameSessionState,
-        navigationState = navigationState,
+        navigationService = navigationService,
         timer = timer
     )
 
@@ -98,7 +103,7 @@ class GameViewModel @Inject constructor(
         coroutineScope = viewModelScope,
         gameSessionState = gameSessionState,
         playerPositionFlow = playerPositionFlow,
-        navigationState = navigationState,
+        navigationService = navigationService,
         timer = timer,
         sessionStateHandle = sessionStateHandle,
         savedStateHandle = savedStateHandle
@@ -110,28 +115,22 @@ class GameViewModel @Inject constructor(
 
     private val createGameHandler = CreateGameHandler(
         createGameState = createGameState,
-        navigationState = navigationState,
+        navigationService = navigationService,
         coroutineScope = viewModelScope,
         gameApiService = gameApiService,
         onGameCreated = { game, startTimeStamp ->
             val remainingTime =
-                sessionStateHandle.calculateRemainingTime(startTimeStamp, game.gameDurationInMinutes)
+                calculateRemainingTime(startTimeStamp, game.gameDurationInMinutes)
             sessionStateHandle.persistSession(game.id!!, game.role, startTimeStamp)
-            navigationState.update { NavigationState.Game }
+            navigationService.navigateTo(NavigationState.Game)
             gameSessionState.update { it.copy(game = game) }
             timer.value = remainingTime
             vibrationService.triggerVibration()
         }
     )
 
-    private val menuHandler = MenuHandler(
-        navigationState = navigationState,
-        coroutineScope = viewModelScope,
-        gameApiService = gameApiService
-    )
-
     private val gameListHandler = GameListHandler(
-        navigationState = navigationState,
+        navigationService = navigationService,
         gameSessionState = gameSessionState,
         timer = timer,
         coroutineScope = viewModelScope,

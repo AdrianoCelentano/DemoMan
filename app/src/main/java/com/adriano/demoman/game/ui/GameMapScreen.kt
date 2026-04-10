@@ -27,14 +27,14 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adriano.demoman.R
-import com.adriano.demoman.game.domain.DebugViewState
+import com.adriano.demoman.game.domain.debug.DebugViewState
 import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.game.domain.GameSession
 import com.adriano.demoman.game.domain.GameViewModel
 import com.adriano.demoman.game.domain.Team
 import com.adriano.demoman.game.domain.Tower
-import com.adriano.demoman.game.domain.createOuterBounds
-import com.adriano.demoman.game.domain.findCenter
+import com.adriano.demoman.game.domain.location.createOuterBounds
+import com.adriano.demoman.game.domain.location.findCenter
 import com.adriano.demoman.ui.theme.DemoManTheme
 import com.google.android.gms.maps.CameraUpdateFactory.newLatLngBounds
 import com.google.android.gms.maps.model.CameraPosition

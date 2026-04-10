@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.adriano.demoman.R
-import com.adriano.demoman.game.domain.MenuEvent
 import com.adriano.demoman.game.domain.NavigationState
 import com.adriano.demoman.game.domain.GameViewModel
 import com.adriano.demoman.game.domain.GameListEvent
@@ -32,14 +31,14 @@ fun GameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewM
     val navState = viewModel.navigationState.collectAsState().value
     val timer = viewModel.timer.collectAsState().value
     when (navState) {
-        is NavigationState.GameList -> GameListScreen(navState.games, viewModel::onGameListEvent, { viewModel.onMenuEvent(MenuEvent.GoToSetup) }, innerPadding)
+        is NavigationState.GameList -> GameListScreen(navState.games, viewModel::onGameListEvent, { viewModel.navigateTo(NavigationState.Setup) }, innerPadding)
         NavigationState.Game -> {
             val gameSessionState = viewModel.gameSessionState.collectAsState().value
             GameMapScreen(innerPadding, viewModel::onEvent, gameSessionState.game, timer, gameSessionState.debugState)
         }
         NavigationState.Loading -> LoadingScreen()
         NavigationState.Setup -> SetupScreen(
-            onGoToCreateGame = { viewModel.onMenuEvent(MenuEvent.GoToCreateGame) },
+            onGoToCreateGame = { viewModel.navigateTo(NavigationState.CreateGame) },
             onGoToGameList = { viewModel.onGameListEvent(GameListEvent.GoToGameList) },
             innerPadding = innerPadding
         )

@@ -9,7 +9,7 @@ import com.adriano.demoman.game.domain.CreateGameSteps
 import com.adriano.demoman.game.domain.CreateGameEvent
 import com.adriano.demoman.game.domain.GameSession
 import com.adriano.demoman.game.domain.NavigationState
-import com.adriano.demoman.game.domain.orderClockwise
+import com.adriano.demoman.game.domain.location.orderClockwise
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import kotlinx.coroutines.CoroutineScope
@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 
 class CreateGameHandler(
     private val createGameState: MutableStateFlow<CreateGameStep>,
-    private val navigationState: MutableStateFlow<NavigationState>,
+    private val navigationService: NavigationService,
     private val coroutineScope: CoroutineScope,
     private val gameApiService: GameApiService,
     private val onGameCreated: suspend (GameSession, Long) -> Unit
@@ -37,7 +37,7 @@ class CreateGameHandler(
     private fun createGameBack() {
         val step = createGameState.value
         when {
-            step.bounds.isEmpty() -> navigationState.update { NavigationState.Setup }
+            step.bounds.isEmpty() -> navigationService.navigateTo(NavigationState.Setup)
             step.towers.isEmpty() -> removeAllBoundaries()
             else -> removeTower(step.towers.last())
         }
@@ -98,7 +98,7 @@ class CreateGameHandler(
     private fun createGame() {
         val currentStep = createGameState.value
         coroutineScope.launch {
-            navigationState.update { NavigationState.Loading }
+            navigationService.navigateTo(NavigationState.Loading)
             val startTimeStamp = System.currentTimeMillis()
             val gameDto = gameApiService.createGame(
                 CreateGameRequestDto(

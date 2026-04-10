@@ -1,4 +1,4 @@
-package com.adriano.demoman.game.domain
+package com.adriano.demoman.game.domain.location
 
 import android.location.Location
 import com.google.android.gms.maps.model.LatLng

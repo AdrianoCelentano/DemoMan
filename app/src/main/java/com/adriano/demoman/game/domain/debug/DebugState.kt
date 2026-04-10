@@ -1,6 +1,7 @@
-package com.adriano.demoman.game.domain
+package com.adriano.demoman.game.domain.debug
 
 import android.location.Location
+import com.adriano.demoman.game.domain.Tower
 import com.google.android.gms.maps.model.LatLng
 
 data class DebugViewState(

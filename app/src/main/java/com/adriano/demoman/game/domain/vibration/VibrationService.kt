@@ -1,4 +1,4 @@
-package com.adriano.demoman.game.domain
+package com.adriano.demoman.game.domain.vibration
 
 import android.annotation.SuppressLint
 import android.content.Context

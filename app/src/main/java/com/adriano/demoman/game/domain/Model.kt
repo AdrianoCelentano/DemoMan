@@ -1,5 +1,6 @@
 package com.adriano.demoman.game.domain
 
+import com.adriano.demoman.game.domain.debug.DebugViewState
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.CoroutineScope
 
@@ -65,10 +66,7 @@ data class CreateGameStep(
 enum class CreateGameSteps { Boundary, Tower, Complete }
 
 
-sealed class MenuEvent {
-    object GoToSetup : MenuEvent()
-    object GoToCreateGame : MenuEvent()
-}
+
 
 sealed class GameListEvent {
     object GoToGameList : GameListEvent()

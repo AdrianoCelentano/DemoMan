@@ -3,9 +3,7 @@ package com.adriano.demoman.game.domain.handler
 import android.annotation.SuppressLint
 import android.location.Location
 import android.util.Log
-import androidx.annotation.RequiresPermission
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.viewModelScope
 import com.adriano.demoman.game.data.ActivateTowerRequestDto
 import com.adriano.demoman.game.data.GameApiService
 import com.adriano.demoman.game.data.LocationProvider
@@ -15,10 +13,11 @@ import com.adriano.demoman.game.domain.GameEvent
 import com.adriano.demoman.game.domain.GameSessionState
 import com.adriano.demoman.game.domain.NavigationState
 import com.adriano.demoman.game.domain.Team
-import com.adriano.demoman.game.domain.VibrationService
-import com.adriano.demoman.game.domain.calculateDebugState
-import com.adriano.demoman.game.domain.isWithinRange
-import com.adriano.demoman.game.domain.simulateWalkingRoute
+import com.adriano.demoman.game.domain.vibration.VibrationService
+import com.adriano.demoman.game.domain.debug.calculateDebugState
+import com.adriano.demoman.game.domain.location.isWithinRange
+import com.adriano.demoman.game.domain.debug.simulateWalkingRoute
+import com.adriano.demoman.game.domain.time.calculateRemainingTime
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -40,7 +39,7 @@ class GameSessionHandler(
     private val coroutineScope: CoroutineScope,
     private val gameSessionState: MutableStateFlow<GameSessionState>,
     private val playerPositionFlow: MutableStateFlow<LatLng?>,
-    private val navigationState: MutableStateFlow<NavigationState>,
+    private val navigationService: NavigationService,
     private val timer: MutableStateFlow<Long?>,
     private val sessionStateHandle: GameSessionStateHandle,
     private val savedStateHandle: SavedStateHandle
@@ -78,7 +77,7 @@ class GameSessionHandler(
     private fun startGameTimer() {
         if (timerJob != null) return
         timerJob = coroutineScope.launch {
-            var seconds = timer.value ?: sessionStateHandle.calculateRemainingTime(
+            var seconds = timer.value ?: calculateRemainingTime(
                 gameSessionState.value.game.startTimeStamp,
                 gameSessionState.value.game.gameDurationInMinutes
             )
@@ -208,13 +207,13 @@ class GameSessionHandler(
 
     private fun endGame() {
         coroutineScope.launch {
-            navigationState.update { NavigationState.Loading }
+            navigationService.navigateTo(NavigationState.Loading)
             gameApiService.endGame(gameSessionState.value.game.id!!)
             timerJob?.cancel()
             timerJob = null
             sessionStateHandle.clearPersistedSession()
             activatingTowers.clear()
-            navigationState.update { NavigationState.Setup }
+            navigationService.navigateTo(NavigationState.Setup)
             gameSessionState.update { GameSessionState() }
             timer.value = null
         }

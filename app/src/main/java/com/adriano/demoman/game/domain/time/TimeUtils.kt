@@ -1,4 +1,4 @@
-package com.adriano.demoman.game.domain
+package com.adriano.demoman.game.domain.time
 
 fun calculateRemainingTime(startTimeStamp: Long?, durationInMinutes: Long): Long {
     if (startTimeStamp == null) return durationInMinutes * 60

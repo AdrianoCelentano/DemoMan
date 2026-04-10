@@ -6,13 +6,14 @@ import com.adriano.demoman.game.data.toGameSession
 import com.adriano.demoman.game.domain.GameListEvent
 import com.adriano.demoman.game.domain.GameSessionState
 import com.adriano.demoman.game.domain.NavigationState
+import com.adriano.demoman.game.domain.time.calculateRemainingTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class GameListHandler(
-    private val navigationState: MutableStateFlow<NavigationState>,
+    private val navigationService: NavigationService,
     private val gameSessionState: MutableStateFlow<GameSessionState>,
     private val timer: MutableStateFlow<Long?>,
     private val coroutineScope: CoroutineScope,
@@ -30,16 +31,16 @@ class GameListHandler(
 
     private fun goToGameList() {
         coroutineScope.launch {
-            navigationState.update { NavigationState.Loading }
+            navigationService.navigateTo(NavigationState.Loading)
             val games = gameApiService.loadGames().body()?.map { it.toGameSession() }
                 ?: emptyList()
-            navigationState.update { NavigationState.GameList(games) }
+            navigationService.navigateTo(NavigationState.GameList(games))
         }
     }
 
     private fun joinGame(event: GameListEvent.JoinGame) {
         coroutineScope.launch {
-            navigationState.update { NavigationState.Loading }
+            navigationService.navigateTo(NavigationState.Loading)
             val response = gameApiService.joinGame(
                 JoinGameRequestDto(
                     gameId = event.gameId,
@@ -51,12 +52,12 @@ class GameListHandler(
                     response.body() ?: throw IllegalStateException("Game must not be null")
                 val game = gameDto.toGameSession()
                 val remainingTime =
-                    sessionHandler.calculateRemainingTime(
+                    calculateRemainingTime(
                         gameDto.startTimeStamp,
                         game.gameDurationInMinutes
                     )
                 sessionHandler.persistSession(game.id!!, game.role, gameDto.startTimeStamp)
-                navigationState.update { NavigationState.Game }
+                navigationService.navigateTo(NavigationState.Game)
                 gameSessionState.update { it.copy(game = game) }
                 timer.value = remainingTime
                 onTriggerVibration()

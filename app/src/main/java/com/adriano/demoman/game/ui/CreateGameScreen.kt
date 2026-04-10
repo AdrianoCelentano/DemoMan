@@ -53,7 +53,7 @@ import com.adriano.demoman.game.domain.CreateGameStep
 import com.adriano.demoman.game.domain.CreateGameSteps
 import com.adriano.demoman.game.domain.CreateGameEvent
 import com.adriano.demoman.game.domain.GameViewModel
-import com.adriano.demoman.game.domain.createOuterBounds
+import com.adriano.demoman.game.domain.location.createOuterBounds
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.CameraUpdateFactory.newLatLngBounds
 import com.google.android.gms.maps.model.LatLng
