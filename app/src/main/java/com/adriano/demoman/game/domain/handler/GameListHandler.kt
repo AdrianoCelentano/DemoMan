@@ -4,6 +4,7 @@ import com.adriano.demoman.game.data.GameApiService
 import com.adriano.demoman.game.data.JoinGameRequestDto
 import com.adriano.demoman.game.data.toGameSession
 import com.adriano.demoman.game.domain.GameListEvent
+import com.adriano.demoman.game.domain.GameSession
 import com.adriano.demoman.game.domain.GameSessionState
 import com.adriano.demoman.game.domain.NavigationState
 import com.adriano.demoman.game.domain.time.calculateRemainingTime

@@ -44,6 +44,7 @@ fun GameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewM
                 is NavigationEvent.NavigateTo -> {
                     navController.navigate(event.state)
                 }
+
                 NavigationEvent.NavigateBack -> {
                     navController.popBackStack()
                 }
@@ -56,11 +57,7 @@ fun GameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewM
         startDestination = NavigationState.Setup as NavigationState
     ) {
         composable<NavigationState.Setup> {
-            SetupScreen(
-                onGoToCreateGame = { navigationService.navigateTo(NavigationState.CreateGame) },
-                onGoToGameList = { viewModel.onGameListEvent(GameListEvent.GoToGameList) },
-                innerPadding = innerPadding
-            )
+            SetupScreen(innerPadding = innerPadding)
         }
         composable<NavigationState.Loading> {
             LoadingScreen()
@@ -91,7 +88,7 @@ fun GameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewM
 }
 
 @Composable
-fun SetupScreen(onGoToCreateGame: () -> Unit, onGoToGameList: () -> Unit, innerPadding: PaddingValues) {
+fun SetupScreen(innerPadding: PaddingValues) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -157,10 +154,12 @@ fun SetupScreen(onGoToCreateGame: () -> Unit, onGoToGameList: () -> Unit, innerP
 
             Spacer(modifier = Modifier.height(48.dp))
 
+            val navigationService = LocalNavigationService.current
+
             // Buttons
             MainActionButton(
                 text = "NEUES SPIEL",
-                onClick = onGoToCreateGame,
+                onClick = { navigationService.navigateTo(NavigationState.CreateGame) },
                 isPrimary = true
             )
 
@@ -168,7 +167,7 @@ fun SetupScreen(onGoToCreateGame: () -> Unit, onGoToGameList: () -> Unit, innerP
 
             MainActionButton(
                 text = "SPIEL BEITRETEN",
-                onClick = onGoToGameList,
+                onClick = { navigationService.navigateTo(NavigationState.GameList) },
                 isPrimary = false
             )
         }
