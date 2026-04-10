@@ -22,23 +22,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.adriano.demoman.R
-import com.adriano.demoman.game.domain.CreateGameStep
 import com.adriano.demoman.game.domain.GameEvent
-import com.adriano.demoman.game.domain.GameList
-import com.adriano.demoman.game.domain.GameStep
+import com.adriano.demoman.game.domain.NavigationState
 import com.adriano.demoman.game.domain.GameViewModel
 
 @Composable
 fun GameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewModel()) {
-    val state = viewModel.gameState.collectAsState().value
+    val navState = viewModel.navigationState.collectAsState().value
     val timer = viewModel.timer.collectAsState().value
     val onEvent = viewModel::onEvent
-    when (state.step) {
-        is GameList -> GameListScreen(state.step.games, onEvent, innerPadding)
-        GameStep.Game -> GameMapScreen(innerPadding, onEvent, state.game, timer, state.debugState)
-        GameStep.Loading -> LoadingScreen()
-        GameStep.Setup -> SetupScreen(onEvent, innerPadding)
-        is CreateGameStep -> CreateGameScreen(innerPadding)
+    when (navState) {
+        is NavigationState.GameList -> GameListScreen(navState.games, onEvent, innerPadding)
+        NavigationState.Game -> {
+            val gameSessionState = viewModel.gameSessionState.collectAsState().value
+            GameMapScreen(innerPadding, onEvent, gameSessionState.game, timer, gameSessionState.debugState)
+        }
+        NavigationState.Loading -> LoadingScreen()
+        NavigationState.Setup -> SetupScreen(onEvent, innerPadding)
+        NavigationState.CreateGame -> CreateGameScreen(innerPadding)
     }
 }
 

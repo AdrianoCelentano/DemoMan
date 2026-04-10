@@ -1,10 +1,13 @@
-package com.adriano.demoman.game.domain
+package com.adriano.demoman.game.domain.handler
 
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import com.adriano.demoman.game.data.GameApiService
 import com.adriano.demoman.game.data.GameSessionRepository
 import com.adriano.demoman.game.data.toGameSession
+import com.adriano.demoman.game.domain.GameSessionState
+import com.adriano.demoman.game.domain.NavigationState
+import com.adriano.demoman.game.domain.Team
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -15,7 +18,8 @@ class GameSessionHandler(
     private val gameSessionRepository: GameSessionRepository,
     private val gameApiService: GameApiService,
     private val coroutineScope: CoroutineScope,
-    private val gameState: MutableStateFlow<GameViewState>,
+    private val gameSessionState: MutableStateFlow<GameSessionState>,
+    private val navigationState: MutableStateFlow<NavigationState>,
     private val timer: MutableStateFlow<Long?>,
 ) {
     suspend fun persistSession(gameId: String, team: Team, startTimeStamp: Long?) {
@@ -62,7 +66,7 @@ class GameSessionHandler(
 
     private fun restoreSession(gameId: String, team: Team, startTimeStamp: Long?) {
         coroutineScope.launch {
-            gameState.update { it.copy(step = GameStep.Loading) }
+            navigationState.update { NavigationState.Loading }
             try {
                 val gameDto = gameApiService.findGameById(gameId).body()
                 val game = gameDto?.toGameSession()?.copy(role = team)
@@ -70,12 +74,8 @@ class GameSessionHandler(
                     val actualStartTime = gameDto.startTimeStamp ?: startTimeStamp
                     val remainingTime =
                         calculateRemainingTime(actualStartTime, game.gameDurationInMinutes)
-                    gameState.update {
-                        it.copy(
-                            step = GameStep.Game,
-                            game = game,
-                        )
-                    }
+                    navigationState.update { NavigationState.Game }
+                    gameSessionState.update { it.copy(game = game) }
                     timer.value = remainingTime
                     Log.d(
                         "qwer",
@@ -84,11 +84,11 @@ class GameSessionHandler(
                 } else {
                     // Game no longer exists on the server — clean up and go to setup.
                     clearPersistedSession()
-                    gameState.update { it.copy(step = GameStep.Setup) }
+                    navigationState.update { NavigationState.Setup }
                 }
             } catch (e: Exception) {
                 Log.e("qwer", "Failed to restore session", e)
-                gameState.update { it.copy(step = GameStep.Setup) }
+                navigationState.update { NavigationState.Setup }
             }
         }
     }

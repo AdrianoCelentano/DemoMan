@@ -3,8 +3,7 @@ package com.adriano.demoman.game.domain
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.CoroutineScope
 
-data class GameViewState(
-    val step: GameStep = GameStep.Setup,
+data class GameSessionState(
     val game: GameSession = GameSession(),
     val debugState: DebugViewState? = null
 )
@@ -38,10 +37,12 @@ data class Player(
     val position: LatLng
 )
 
-sealed class GameStep {
-    object Loading : GameStep()
-    object Setup : GameStep()
-    object Game : GameStep()
+sealed class NavigationState {
+    object Loading : NavigationState()
+    object Setup : NavigationState()
+    object Game : NavigationState()
+    object CreateGame : NavigationState()
+    data class GameList(val games: List<GameSession>) : NavigationState()
 }
 
 data class CreateGameStep(
@@ -50,7 +51,7 @@ data class CreateGameStep(
     val gameDurationInMinutes: Long = 60,
     val bounds: List<LatLng> = emptyList(),
     val towers: List<LatLng> = emptyList()
-) : GameStep() {
+) {
     val step: CreateGameSteps
         get() {
             return when {
@@ -63,9 +64,6 @@ data class CreateGameStep(
 
 enum class CreateGameSteps { Boundary, Tower, Complete }
 
-data class GameList(
-    val games: List<GameSession>
-) : GameStep()
 
 sealed class GameEvent {
     object GoToGameList : GameEvent()

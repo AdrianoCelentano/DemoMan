@@ -72,8 +72,7 @@ import com.google.maps.android.compose.rememberUpdatedMarkerState
 @Composable
 fun CreateGameScreen(innerPadding: PaddingValues, viewModel: GameViewModel = hiltViewModel()) {
 
-    val state = viewModel.gameState.collectAsState().value.step
-    if (state !is CreateGameStep) return
+    val state = viewModel.createGameState.collectAsState().value
 
     BackHandler { viewModel.onEvent(GameEvent.CreateGameBack) }
 
