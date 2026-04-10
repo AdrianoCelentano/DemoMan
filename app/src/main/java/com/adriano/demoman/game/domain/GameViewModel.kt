@@ -4,21 +4,13 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.location.Location
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
-import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.adriano.demoman.game.data.ActivateTowerRequestDto
 import com.adriano.demoman.game.data.GameApiService
 import com.adriano.demoman.game.data.GameSessionRepository
 import com.adriano.demoman.game.data.LocationProvider
-import com.adriano.demoman.game.data.UpdatePlayerPositionRequest
-import com.adriano.demoman.game.data.toGameSession
 import com.adriano.demoman.game.domain.handler.CreateGameHandler
 import com.adriano.demoman.game.domain.handler.GameListHandler
 import com.adriano.demoman.game.domain.handler.GameSessionHandler
@@ -29,23 +21,13 @@ import com.adriano.demoman.game.domain.vibration.VibrationService
 import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 
 @SuppressLint("MissingPermission")
 @HiltViewModel
 class GameViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val gameApiService: GameApiService,
     private val locationProvider: LocationProvider,
     private val gameSessionRepository: GameSessionRepository,
