@@ -1,6 +1,7 @@
 package com.adriano.demoman.di
 
 import com.adriano.demoman.auth.AuthApiService
+import com.adriano.demoman.auth.TokenStore
 import com.adriano.demoman.game.data.FakeGameApiService
 import com.adriano.demoman.game.data.GameApiService
 import dagger.Module
@@ -25,6 +26,14 @@ object NetworkModule {
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             })
+            .addInterceptor { chain ->
+                val requestBuilder = chain.request().newBuilder()
+                val token = TokenStore.token
+                if (!token.isNullOrBlank()) {
+                    requestBuilder.addHeader("Authorization", "Bearer $token")
+                }
+                chain.proceed(requestBuilder.build())
+            }
             .connectTimeout(0, TimeUnit.MILLISECONDS) // No timeout for establishing connection
             .readTimeout(0, TimeUnit.MILLISECONDS)    // No timeout for receiving data
             .writeTimeout(0, TimeUnit.MILLISECONDS)   // No timeout for sending data
